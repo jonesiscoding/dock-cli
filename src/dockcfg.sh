@@ -121,6 +121,22 @@ function is-special-app() {
   echo "$1" | tr '[:upper:]' '[:lower:]' | grep -q "$1"
 }
 
+# @description Reloads the preferences, then kills the Dock process.
+# @noargs
+# @exitcode 0 Success
+# @exitcode 1 Failure
+function reload-dock() {
+  local activateSettings="/System/Library/PrivateFrameworks/SystemAdministration.framework/Resources/activateSettings"
+
+  if [ -f "$activateSettings" ] && [[ "$myUser" == "$USER" ]]; then
+    sudo -u "$myUser" "$activateSettings" && killall Dock
+  elif [ -f "$activateSettings" ]; then
+    $activateSettings && killall Dock
+  else
+    killall cprefsd && killall Dock
+  fi
+}
+
 ## endregion ################################### End Misc Functions
 
 ## region ###################################### File Functions
@@ -1113,9 +1129,13 @@ elif [ -n "$outFile" ] && [[ "$outFile:e" == "plist" ]]; then
          json=$(cat "$inFile")
        fi
        dock::import "$outFile" "$json"
-       if [[ "$(user::console)" == "$myUser" ]]; then
-         killall cfprefsd && killall Dock
-       fi
+    fi
+
+     # Refresh the Dock (if needed & not skipped)
+     [[ "$(user::console)" != "$myUser" ]] && isRestart=false
+     [[ "$outFile" != "$plistUser" ]] && isRestart=false
+     if $isRestart; then
+       reload-dock || exit 5
      fi
   fi
 fi
