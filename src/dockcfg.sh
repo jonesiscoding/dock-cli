@@ -79,6 +79,18 @@ fi
 
 ## endregion ################################### End Jamf Functions
 
+## region ###################################### Misc Functions
+
+# @description Evaluates if the given slug or name is a special app.
+# @arg $1 string Slug or Name
+# @exitcode 0 Special
+# @exitcode 1 Not Special
+function is-special-app() {
+  echo "$1" | tr '[:upper:]' '[:lower:]' | grep -q "$1"
+}
+
+## endregion ################################### End Misc Functions
+
 ## region ###################################### File Functions
 
 # @description Removes the file:// schema, specific encoding, and trailing slashes.
@@ -264,7 +276,7 @@ function app::resolve() {
   [[ "${app:0:1}" == "/" ]] && echo "$app" && return 0
 
   # Special Apps
-  if is-special "$app"; then
+  if is-special-app "$app"; then
     special=$(app::special "$app")
     if [ -n "$special" ]; then
       echo "$special" && return 0
@@ -857,10 +869,6 @@ function dock::tile::create() {
   fi
 }
 
-function is-special() {
-  echo "$1" | tr '[:upper:]' '[:lower:]' | grep -q "$1"
-}
-
 function dock::create() {
   local tile tiles x jsonArr tSection sections jsonObj
 
@@ -887,7 +895,7 @@ function dock::create() {
       if jq -r '.type' <<< "$tile" | grep -q "app-tile"; then
         url=$(tile::url "$tile")
         label=$(tile::label "$tile")
-        if is-special "$url"; then
+        if is-special-app "$url"; then
           jsonArr=$(json-arr-add "$jsonArr" "$url")
         elif [[ "$label" == "$url" ]]; then
           jsonArr=$(json-arr-add "$jsonArr" "$url")
