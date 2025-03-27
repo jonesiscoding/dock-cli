@@ -857,13 +857,7 @@ function dock::tile::create() {
       json="{}"
     fi
 
-    if [[ "$MACDOCK_FORMAT" == "yaml" ]]; then
-      yq -P <<< "$json"
-    else
-      echo "$json"
-    fi
-
-    return 0
+    echo "$json" && return 0
   else
     return 1
   fi
