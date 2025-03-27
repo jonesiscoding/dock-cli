@@ -2,6 +2,7 @@
 
 specialApps="special_apps.json"
 webappPattern="(com.apple.Safari.WebApp|com.google.Chrome.app|com.microsoft.edgemac.app)"
+binPlb=/usr/libexec/PlistBuddy
 plistFile="com.apple.dock.plist"
 plistDir="Library/Preferences"
 position="0"
@@ -461,29 +462,32 @@ function json-arr-add() {
 
 ## region ###################################### Plist Functions
 
+plist::print() {
+  $binPlb -c "Print $1" "$2" 2>&1 | grep -v "File Doesn't Exist" | grep -v "Does Not Exist"
+}
+
 plist::tile::type() {
-  /usr/libexec/PlistBuddy -c "Print :${section}:${position}:tile-type" "$dock" 2>/dev/null | grep -v "File Doesn't Exist" | grep -v "Does Not Exist"
+  plist::print ":${section}:${position}:tile-type" "$dock"
 }
 
 plist::webapp::url() {
-  /usr/libexec/PlistBuddy -c "Print :Manifest:start_url" "$1" 2>/dev/null | grep -v "File Doesn't Exist" | grep -v "Does Not Exist"
+   plist::print ":Manifest:start_url" "$1"
 }
 
 plist::webloc::url() {
-  /usr/libexec/PlistBuddy -c "Print :URL" "$1" | grep -v "File Doesn't Exist" | grep -v "Does Not Exist"
+  plist::print ":URL" "$1"
 }
-
 
 plist::webloc::name() {
   curl -L -s "$(plist::webloc::url "$1")" -o - | grep '<title>' | awk -F'<title>' '{ print $2 }' | awk -F'</title>' '{ print $1 }'
 }
 
 plist::webapp::name() {
-  /usr/libexec/PlistBuddy -c "Print :CFBundleName" "$1" 2>/dev/null | grep -v "File Doesn't Exist" | grep -v "Does Not Exist"
+  plist::print ":CFBundleName" "$1"
 }
 
 plist::tile::data() {
-  /usr/libexec/PlistBuddy -c "Print :${section}:${position}:tile-data:${1}" "$dock" 2>&1 | grep -v "Does Not Exist"
+  plist::print ":${section}:${position}:tile-data:${1}" "$dock"
 }
 
 plist::tile::url() {
@@ -498,6 +502,18 @@ plist::tile::label() {
   plist::tile::data "file-label" || plist::tile::data "label"
 }
 
+plist::add::tile() {
+  $binPlb -c "add ${section}:${1} dict" "$dock"
+}
+
+plist::add::tileData() {
+  $binPlb -c "add ${section}:${1}:tile-data:${2}" "$dock"
+}
+
+plist::add::tileType() {
+  $binPlb -c "add ${section}:${1}:tile-type string ${2}" "$dock"
+}
+
 plist::dock::add::file() {
   local index url file label bundle json
 
@@ -508,16 +524,14 @@ plist::dock::add::file() {
   label=$(tile::label "$json")
   bundle=$(tile::bundle "$json")
 
-	/usr/libexec/PlistBuddy -c "add ${section}:${index} dict " "$dock"
-	/usr/libexec/PlistBuddy -c "add ${section}:${index}:tile-data dict" "$dock"
-	/usr/libexec/PlistBuddy -c "add ${section}:${index}:tile-data:file-data dict" "$dock"
-	/usr/libexec/PlistBuddy -c "add ${section}:${index}:tile-data:file-data:_CFURLString string ${file}" "$dock"
-	/usr/libexec/PlistBuddy -c "add ${section}:${index}:tile-data:file-data:_CFURLStringType integer 15" "$dock"
-	/usr/libexec/PlistBuddy -c "add ${section}:${index}:tile-data:file-label string ${label}" "$dock"
-	/usr/libexec/PlistBuddy -c "add ${section}:${index}:tile-data:label string ${bundle}" "$dock"
-	/usr/libexec/PlistBuddy -c "add ${section}:${index}:tile-type string file-tile" "$dock"
-	/usr/libexec/PlistBuddy -c "add ${section}:${index}:tile-data:dock-extra bool false" "$dock"
-	/usr/libexec/PlistBuddy -c "add ${section}:${index}:tile-data:file-type integer 41" "$dock"
+  plist::add::tile "$index"
+	plist::add::tileData "$index" " dict"
+	plist::add::tileData "$index" ":file-data dict"
+	plist::add::tileData "$index" ":file-data:_CFURLString string ${file}"
+	plist::add::tileData "$index" ":file-data:_CFURLStringType integer 15"
+	plist::add::tileData "$index" ":dock-extra bool false"
+	plist::add::tileData "$index" ":file-type integer 41"
+	plist::add::tileType "$index" "file-tile"
 }
 
 plist::dock::add::app() {
@@ -529,7 +543,8 @@ plist::dock::add::app() {
   json="$2"
   bundle=$(tile::bundle "$json")
 
-	/usr/libexec/PlistBuddy -c "add ${section}:${index}:tile-data:bundle-identifier string ${bundle}" "$dock"
+	plist::add::tileData "$index" ":label string ${bundle}"
+  plist::add::tileData "$index" ":bundle-identifier string ${bundle}"
 }
 
 _findUrlApp() {
@@ -595,13 +610,13 @@ plist::dock::add::url() {
     json=$(json-obj-add "$json" "url" "$app")
     plist::dock::add::app "$index" "$json"
   else
-    /usr/libexec/PlistBuddy -c "add ${section}:${index} dict " "$dock"
-    /usr/libexec/PlistBuddy -c "add ${section}:${index}:tile-data dict" "$dock"
-    /usr/libexec/PlistBuddy -c "add ${section}:${index}:tile-data:label string ${label}" "$dock"
-    /usr/libexec/PlistBuddy -c "add ${section}:${index}:tile-data:url dict" "$dock"
-    /usr/libexec/PlistBuddy -c "add ${section}:${index}:tile-data:url:_CFURLString string ${url}" "$dock"
-    /usr/libexec/PlistBuddy -c "add ${section}:${index}:tile-data:url:_CFURLStringType integer 15" "$dock"
-    /usr/libexec/PlistBuddy -c "add ${section}:${index}:tile-type string url-tile" "$dock"
+    plist::add::tile "$index"
+	  plist::add::tileData "$index" " dict"
+    plist::add::tileData "$index" ":label string ${label}"
+	  plist::add::tileData "$index" ":url dict"
+	  plist::add::tileData "$index" ":url:_CFURLString string ${url}"
+	  plist::add::tileData "$index" ":url:_CFURLStringType integer 15"
+	  plist::add::tileType "$index" "url-tile"
   fi
 }
 
@@ -621,32 +636,31 @@ plist::dock::add::directory() {
   dispI=$(folder::display::toInt "$dispS")
   showI=$(folder::show::toInt "$showS")
 
-  >&2 echo "doing this for $section:$index"
-	/usr/libexec/PlistBuddy -c "add ${section}:${index} dict " "$dock"
-	/usr/libexec/PlistBuddy -c "add ${section}:${index}:tile-data dict" "$dock"
-	/usr/libexec/PlistBuddy -c "add ${section}:${index}:tile-data:file-data dict" "$dock"
-	/usr/libexec/PlistBuddy -c "add ${section}:${index}:tile-data:file-data:_CFURLString string ${url}" "$dock"
-	/usr/libexec/PlistBuddy -c "add ${section}:${index}:tile-data:file-data:_CFURLStringType integer 0" "$dock"
-	/usr/libexec/PlistBuddy -c "add ${section}:${index}:tile-data:file-label string ${label}" "$dock"
-	/usr/libexec/PlistBuddy -c "add ${section}:${index}:tile-data:file-type integer 2" "$dock"
-	/usr/libexec/PlistBuddy -c "add ${section}:${index}:tile-data:preferreditemsize integer -1" "$dock"
-	/usr/libexec/PlistBuddy -c "add ${section}:${index}:tile-data:arrangement integer ${sortI}" "$dock"
-	/usr/libexec/PlistBuddy -c "add ${section}:${index}:tile-data:displayas integer ${dispI}" "$dock"
-	/usr/libexec/PlistBuddy -c "add ${section}:${index}:tile-data:showas integer ${showI}" "$dock"
-	/usr/libexec/PlistBuddy -c "add ${section}:${index}:tile-type string directory-tile" "$dock"
+  plist::add::tile "$index"
+	plist::add::tileData "$index" " dict"
+	plist::add::tileData "$index" ":file-data dict"
+	plist::add::tileData "$index" ":file-data:_CFURLString string ${url}"
+	plist::add::tileData "$index" ":file-data:_CFURLStringType integer 0"
+	plist::add::tileData "$index" ":file-data:file-label string ${label}"
+	plist::add::tileData "$index" ":file-data:file-type integer 2"
+	plist::add::tileData "$index" ":file-data:preferreditemsize integer -1"
+	plist::add::tileData "$index" ":file-data:arrangement integer ${sortI}"
+	plist::add::tileData "$index" ":file-data:displayas integer ${dispI}"
+	plist::add::tileData "$index" ":file-data:showas integer ${showI}"
+	plist::add::tileType "$index" "directory-tile"
 }
 
 plist::dock::empty() {
   local firstLabel
-  firstLabel=$(/usr/libexec/PlistBuddy -c "print :${section}:0:tile-data" "$dock" 2>&1 | grep -v "Does Not Exist")
+  firstLabel=$(plist::print ":${section}:0:tile-data" "$dock")
 	if [ -n "$firstLabel" ]; then
-		/usr/libexec/PlistBuddy -c "delete :${section}" "$dock"
+		$binPlb -c "delete :${section}" "$dock"
 		sleep 2
-		firstLabel=$(/usr/libexec/PlistBuddy -c "print :${section}:0:tile-data" "$dock" 2>&1 | grep -v "Does Not Exist")
+		firstLabel=$(plist::print ":${section}:0:tile-data" "$dock")
 		if [ -n "$firstLabel" ]; then
 		  exit 1
 		fi
-		/usr/libexec/PlistBuddy -c "add :${section} array" "$dock"
+		$binPlb -c "add :${section} array" "$dock"
 	fi
 }
 
