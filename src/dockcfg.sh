@@ -173,7 +173,7 @@ function app::special::adobe() {
   local adobePaths name year
 
   name=$(echo "$1" | awk -F'-' '{ print $1 }')
-  name=$(echo "${(C)name}" | sed 's#Indesign#InDesign#' | sed 's#Xd#XD#')
+  name=$(echo "${(C)name}" | sed 's#Indesign#InDesign#' | sed 's#Premierepro#Premiere Pro#' | sed 's#Lightroomcc#Lightroom CC#' | sed 's#Xd#XD#')
   year=$(echo "$1" | awk -F'-' '{ print $2 }')
   [ -z "$year" ] && year=$(date +"%Y")
 
@@ -232,7 +232,7 @@ function app::special() {
       ;;
     acrobat)
       app::special::acrobat ;;
-    photoshop* | indesign* | illustrator* | xd | lightroom | dimension )
+    photoshop* | indesign* | illustrator* | bridge* | lightroom* | animate* | after* | xd | dimension )
       app::special::adobe "$app";;
     * )
       appJson=$(jq ".\"$app\"//empty" <<< "$specialApps")
