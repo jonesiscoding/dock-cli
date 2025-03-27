@@ -1015,12 +1015,12 @@ function user::console() {
 function user::dir() {
   local suDir
 
-  if [ -n "${1:-$dockUser}" ]; then
+  if [ -n "${1:-$myUser}" ]; then
     if ! /usr/bin/id -u "$1" | /usr/bin/grep -q "no such user"; then
       # Primary information source
-      suDir=$(/usr/bin/dscl . -read /Users/"${1:-$dockUser}" NFSHomeDirectory 2> /dev/null | /usr/bin/awk -F ': ' '{print $2}')
+      suDir=$(/usr/bin/dscl . -read /Users/"${1:-$myUser}" NFSHomeDirectory 2> /dev/null | /usr/bin/awk -F ': ' '{print $2}')
       # While this is not always correct, it is likely to be correct if the desktop directory exists, so good fallback.
-      [ -z "$suDir" ] && suDir=$(find "/Users" -type d -name "Desktop" 2> /dev/null | grep "/Users/${1:-$dockUser}/Desktop")
+      [ -z "$suDir" ] && suDir=$(find "/Users" -type d -name "Desktop" 2> /dev/null | grep "/Users/${1:-$myUser}/Desktop")
       # Make the directory exists, and strip the "Desktop" portion if applicable
       [ -n "$suDir" ] && [ -d "$suDir" ] && echo "${suDir/\/Desktop/}" && return 0
     fi
