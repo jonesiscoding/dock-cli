@@ -239,6 +239,33 @@ function prefs::plist() {
   echo "$plistFile" | sed "s/com.apple/$(prefs::bundlePrefix)/"
 }
 
+# @description Prints the filename of the bundle-prefix-specific managed preferences for this app.  Managed preferences
+# may be system-wide or user specific.
+# @noargs
+# @stdout string Path to Managed Preference File
+function prefs::managed() {
+  local plf pl
+
+  plf=$(prefs::plist)
+  pl="/${plistDirManaged}/${plf}" && [ -f "$pl" ] && echo "$pl" && return 0
+  [ -n "$myUser" ] && pl="/${plistDirManaged}/${myUser}/${plf}" && [ -f "$pl" ] && echo "$pl" && return 0
+  return 1
+}
+
+# @description Prints the filename of the bundle-prefix-specific preferences for this app. These preferences may be
+# system or user specific. Unlike most macOS defaults, system preferences take precedence over user preferences
+# allowing for a managed dock without an MDM enforced configuration profile.
+# @noargs
+# @stdout string Path to the Preference File
+function prefs::defaults() {
+  local plf pl
+
+  plf=$(prefs::plist)
+  pl="/${plistDir}/${plf}" && [ -f "$pl" ] && echo "$pl" && return 0
+  [ -n "$myUser" ] && pl=$(echo "$plistUser" | sed "s#$plistFile#$plf#") && [ -f "$pl" ] && echo "$pl" && return 0
+  return 1
+}
+
 ## endregion ################################### End Preference Functions
 
 ## region ###################################### Misc Functions
@@ -1189,13 +1216,18 @@ function user::dir() {
 ## region ###################################### Input Handling
 
 outFormat="text"
+isManaged=false
+isDefault=false
+isRestart=true
 while [ "$1" != "" ]; do
   # Check for our added flags
   case "$1" in
       --json )                    outFormat="json";       ;;
       --yaml )                    outFormat="yaml"        ;;
-      --prefs )                   outFormat="plist"       ;;
       --mobileconfig )            outFormat="mobileconfig"     ;;
+      --prefs )                   outFormat="plist"            ;;
+      --managed )                 isManaged=true               ;;
+      --default )                 isDefault=true               ;;
       --user )                    myUser="$2";         shift ;;
       --out  )                    outFile="$2";          shift ;;
       --in   )                    inFile="$2";           shift ;;
@@ -1226,6 +1258,10 @@ if [ -n "$myUser" ]; then
  myUserDir=$(user::dir "$myUser")
  plistUser="$myUserDir/$plistDir/$plistFile"
 fi
+
+# Handle Managed or Default inFile
+$isDefault && inFile=$(prefs::defaults)
+$isManaged && inFile=$(prefs::managed)
 
 # Handle Input/Output
 if [ -n "$inFile" ]; then
@@ -1261,7 +1297,7 @@ fi
 
 ## region ###################################### Main Code
 
-if [[ "$inFile:e" == "plist" ]]; then
+if [[ "$inFile:e" == "plist" ]] && ! $isManaged && ! $isDefault; then
   [ -z "$outFormat" ] && outFormat="text"
   case "$outFormat" in
     yaml)
