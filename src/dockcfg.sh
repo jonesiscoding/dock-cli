@@ -1111,7 +1111,7 @@ if [[ "$inFile:e" == "plist" ]]; then
       dock::create "$inFile" | yq -P > "$outFile" ;;
     json)
       if [[ "$outFile" == "/dev/stdout" ]]; then
-        jq <<< $(dock::create "$inFile")
+        jq <<< "$(dock::create "$inFile")"
       else
         dock::create "$inFile" > "$outFile"
       fi
