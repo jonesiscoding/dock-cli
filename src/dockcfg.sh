@@ -1,10 +1,13 @@
 #!/bin/zsh
 
-specialApps="special_apps.json"
-webappPattern="(com.apple.Safari.WebApp|com.google.Chrome.app|com.microsoft.edgemac.app)"
-binPlb=/usr/libexec/PlistBuddy
+# macOS Specific Variables
 plistFile="com.apple.dock.plist"
 plistDir="Library/Preferences"
+plistDirManaged="Library/Managed Preferences"
+webappPattern="(com.apple.Safari.WebApp|com.google.Chrome.app|com.microsoft.edgemac.app)"
+binPlb=/usr/libexec/PlistBuddy
+
+# Internal Pointers
 position="0"
 section="persistent-apps"
 
@@ -82,7 +85,88 @@ if __isJamfRun "$@"; then
   echo ""
 fi
 
-## endregion ################################### End Jamf Functions
+## endregion ################################### End MDM Functions
+
+## region ###################################### Output Functions
+
+function output::mobileconfig() {
+  local json bp bn pfUuid plUuid isStdOut sections
+  local tSection entry tile key eKey eValue x
+
+  bp=$(prefs::bundlePrefix)
+  bn=$(echo "$plistFile" | sed "s/com.apple/$bp/")
+  pfUuid=$(uuidgen)
+  plUuid=$(uuidgen)
+  json="$1"
+  [ -z "$orgName" ] && orgName="###ORGANIZATION###"
+  [ -z "$payloadName" ] && payloadName="###PAYLOAD_NAME###"
+  [ -z "$payloadScope" ] && payloadScope="System"
+
+  isStdOut=false
+  if [[ "$outFile" == "/dev/stdout" ]]; then
+    outFile="$(mktemp -d)/temp.mobileconfig"
+    isStdOut=true
+  fi
+
+  $binPlb -c "Add :PayloadContent array" "$outFile" | grep -v "File Doesn't Exist"
+  $binPlb -c "Add :PayloadContent:0 dict" "$outFile"
+  $binPlb -c "Add :PayloadContent:0:PayloadContent dict" "$outFile"
+  $binPlb -c "Add :PayloadContent:0:PayloadContent:$bn dict" "$outFile"
+  $binPlb -c "Add :PayloadContent:0:PayloadContent:${bn}:Forced array" "$outFile"
+  $binPlb -c "Add :PayloadContent:0:PayloadContent:${bn}:Forced:0 dict" "$outFile"
+  $binPlb -c "Add :PayloadContent:0:PayloadContent:${bn}:Forced:0:mcx_preference_settings dict" "$outFile"
+  # Loop through JSON
+  declare -a sections
+  sections[1]="persistent-apps"
+  sections[2]="persistent-others"
+
+  for tSection in $sections; do
+    key="PayloadContent:0:PayloadContent:${bn}:Forced:0:mcx_preference_settings:${tSection}"
+    $binPlb -c "Add :${key} array" "$outFile"
+    tile="{}"
+    x=0
+    while [ -n "$tile" ]; do
+      tile=$(jq -r ".\"${tSection}\"[${x}]//empty" <<< "$json")
+      if [ -n "$tile" ]; then
+        if json-is-object "$tile"; then
+          $binPlb -c "Add :${key}:${x} dict" "$outFile"
+          while IFS= read -r entry; do
+            eKey=$(jq '.key' <<< "$entry")
+            eValue=$(jq '.value' <<< "$entry")
+            $binPlb -c "Add :${key}:${x}:${eKey} string \"$eValue\"" "$outFile"
+          done < <(jq -c 'to_entries | .[]' <<< "$tile")
+        else
+          $binPlb -c "Add :${key}:${x} string \"${tile}\"" "$outFile"
+        fi
+      fi
+      x=$((x+1))
+    done
+  done
+  $binPlb -c "Add :PayloadContent:0:PayloadDisplayName string \"Custom Settings\"" "$outFile"
+  $binPlb -c "Add :PayloadContent:0:PayloadIdentifier string \"${plUuid}\"" "$outFile"
+  $binPlb -c "Add :PayloadContent:0:PayloadOrganization string \"${orgName}\"" "$outFile"
+  $binPlb -c "Add :PayloadContent:0:PayloadType string com.apple.ManagedClient.preferences" "$outFile"
+  $binPlb -c "Add :PayloadContent:0:PayloadUUID string \"${plUuid}\"" "$outFile"
+  $binPlb -c "Add :PayloadContent:0:PayloadVersion integer 1" "$outFile"
+  $binPlb -c "Add :PayloadDescription string \"Dock configuration for ${payloadName}\"" "$outFile"
+  $binPlb -c "Add :PayloadDisplayName string \"dock-cli: ${payloadName}\"" "$outFile"
+  $binPlb -c "Add :PayloadEnabled bool true" "$outFile"
+  $binPlb -c "Add :PayloadIdentifier string \"$pfUuid\"" "$outFile"
+  $binPlb -c "Add :PayloadOrganization string \"${orgName}\"" "$outFile"
+  $binPlb -c "Add :PayloadRemovalDisallowed bool true" "$outFile"
+  $binPlb -c "Add :PayloadScope string $payloadScope" "$outFile"
+  $binPlb -c "Add :PayloadType string Configuration" "$outFile"
+  $binPlb -c "Add :PayloadUUID string \"$pfUuid\"" "$outFile"
+  $binPlb -c "Add :PayloadVersion integer 1" "$outFile"
+
+  if $isStdOut; then
+    xmllint --format "$outFile" --output /dev/stdout
+    rm "$outFile"
+    outFile="/dev/stdout"
+  fi
+}
+
+## endregion ################################### End Output Functions
 
 ## region ###################################### Prerequisite Functions
 
@@ -110,6 +194,52 @@ function set-yq() {
 }
 
 ## endregion ################################### Prerequisite Functions
+
+## region ###################################### Preference Functions
+
+# @description Turns host.domain.com into com.domain.host
+# @noargs
+# @stdout The reversed domain
+function prefs::reverseDomain() {
+  echo "$1" | /usr/bin/sed 's/https:\/\///' | /usr/bin/sed 's/\/$//' | /usr/bin/awk -F. '{s="";for (i=NF;i>1;i--) s=s sprintf("%s.",$i);$0=s $1}1'
+}
+
+# @description Gets the bundle prefix to use for retrieval of organization managed preferences, first by utilizing the
+# MDM_BUNDLE_PREFIX environment variable, then the domain portion of the host name, then the jss_url (if available),
+# and defaulting to org.yourname if no other options can be resolved.
+# @noargs
+# @stdout string The bundle prefix
+function prefs::bundlePrefix() {
+  local hostname len prefix
+
+  prefix="$MDM_BUNDLE_PREFIX"
+
+  if [ -z "$prefix" ]; then
+    hostname=$(/bin/hostname -f)
+    len="${hostname//[^\.]}"
+    len=${#len}
+    if [ "${len}" -ge "3" ]; then
+      prefix=$(prefs::reverseDomain "$hostname" | /usr/bin/cut -d'.' -f-$((len-1)) )
+    fi
+  fi
+
+  if [ -z "$prefix" ]; then
+    jamfHost=$(defaults read "/Library/Preferences/com.jamfsoftware.jamf.plist" jss_url 2>/dev/null)
+    [ -n "$jamfHost" ] && prefix=$(prefs::reverseDomain "$jamfHost")
+  fi
+
+  echo "${prefix:-org.yourname}"
+}
+
+# @description Prints the filename of the bundle-prefix-specific preferences for this app.
+# @noargs
+# @stdout string Filename
+function prefs::plist() {
+  # shellcheck disable=SC2001
+  echo "$plistFile" | sed "s/com.apple/$(prefs::bundlePrefix)/"
+}
+
+## endregion ################################### End Preference Functions
 
 ## region ###################################### Misc Functions
 
@@ -1048,6 +1178,7 @@ while [ "$1" != "" ]; do
       --json )                    outFormat="json";       ;;
       --yaml )                    outFormat="yaml"        ;;
       --prefs )                   outFormat="plist"       ;;
+      --mobileconfig )            outFormat="mobileconfig"     ;;
       --user )                    myUser="$2";         shift ;;
       --out  )                    outFile="$2";          shift ;;
       --in   )                    inFile="$2";           shift ;;
@@ -1127,7 +1258,9 @@ if [[ "$inFile:e" == "plist" ]]; then
         dock::create "$inFile" > "$outFile"
       fi
       ;;
-    *)
+    mobileconfig)
+      json=$(dock::create "$inFile")
+      output::mobileconfig "$json"
   esac
 elif [ -n "$outFile" ] && [[ "$outFile:e" == "plist" ]]; then
   [ -z "$outFormat" ] && outFormat="plist"
