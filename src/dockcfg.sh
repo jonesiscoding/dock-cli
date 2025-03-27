@@ -8,6 +8,11 @@ plistDir="Library/Preferences"
 position="0"
 section="persistent-apps"
 
+# Internal Variables
+myVersion="1.0"
+binJQ="" # Set Via Function
+binYQ="" # Set Via Function
+
 specialApps=$(cat <<EOF
 {
   "acrobat": {
@@ -78,6 +83,33 @@ if __isJamfRun "$@"; then
 fi
 
 ## endregion ################################### End Jamf Functions
+
+## region ###################################### Prerequisite Functions
+
+function set-jq() {
+  binJQ=$(which jq)
+  [ ! -e "$binJQ" ] && binJQ=/usr/bin/jq
+  [ ! -e "$binJQ" ] && binJQ=/usr/local/bin/jq
+  [ ! -e "$binJQ" ] && binJQ=/opt/homebrew/bin/jq
+  [ ! -e "$binJQ" ] && binJQ=/opt/local/bin/jq
+  [ ! -e "$binJQ" ] && echo "ERROR: The jq executable is not installed, not in the path, and not at common locations." && return 1
+
+  return 0
+}
+
+function set-yq() {
+  if [[ "$outFormat" == "yaml" ]]; then
+    binYQ=$(which yq)
+    [ ! -e "$binYQ" ] && binJQ=/usr/local/bin/yq
+    [ ! -e "$binYQ" ] && binJQ=/opt/homebrew/bin/yq
+    [ ! -e "$binYQ" ] && binJQ=/opt/local/bin/yq
+    [ ! -e "$binYQ" ] && echo "ERROR: The yq executable is not installed, not in the path, and not at common locations." && return 1
+  fi
+
+  return 0
+}
+
+## endregion ################################### Prerequisite Functions
 
 ## region ###################################### Misc Functions
 
@@ -1000,6 +1032,10 @@ while [ "$1" != "" ]; do
   esac
   shift # move to next kv pair
 done
+
+# Check Prerequisites
+set-jq || exit 5
+set-yq || exit 10
 
 # Resolve User
 if [ -z "$myUser" ]; then
