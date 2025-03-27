@@ -276,7 +276,7 @@ function app::resolve() {
   # User Path
   [[ "${app:0:1}" == "~" ]] && app=$(echo "$app" | sed "s#~#$myUserDir#")
 
-  # Test for Existance
+  # Test for Existence
   if [ -e "$app" ]; then
     echo "$app" && return 0
   else
