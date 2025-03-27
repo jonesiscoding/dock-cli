@@ -1134,6 +1134,23 @@ function dock::import() {
   done
 }
 
+function dock::init() {
+  local myGrp myFile
+
+  myFile="$1"
+  if [ -n "$myUser" ] && [ -n "$myUserDir" ]; then
+    if [ ! -f "$myFile" ]; then
+      if echo "$myFile" | grep -qE "^$myUserDir"; then
+        cp "/${plistDir}/${plistFile}" "$myFile" || return 1
+        chown "$myUser" "$myFile" || return 1
+        myGrp=$(/usr/bin/stat -f "%Sg" "${myUserDir}")
+        [ -z "$myGrp" ] || [[ "$myGrp" == "0" ]] && return 1
+        chgrp "$myGrp" "$myFile" || return 1
+      fi
+    fi
+  fi
+}
+
 ## endregion ################################### Dock Functions
 
 ## region ###################################### User Functions
@@ -1263,17 +1280,26 @@ if [[ "$inFile:e" == "plist" ]]; then
       output::mobileconfig "$json"
   esac
 elif [ -n "$outFile" ] && [[ "$outFile:e" == "plist" ]]; then
+  # Make sure we have an initial file
+  dock::init "$outFile"
+  # Set the output format, if not set
   [ -z "$outFormat" ] && outFormat="plist"
+  # Handle data
   if [ -n "$inFile" ]; then
      if is-native-dock-plist "$inFile"; then
        # Native Apple Dock Plist - Just Copy
        cp "$inFile" "$outFile"
      else
-       if [[ "$inFile:e" == "yaml" ]]; then
+       # Other Input File Types - Convert to JSON
+       if [[ "$inFile:e" == "plist" ]]; then
+         json=$(plutil -convert json -o - "$inFile")
+       elif [[ "$inFile:e" == "yaml" ]]; then
          json=$(yq eval "$inFile" -o=json -P)
        elif [[ "$inFile:e" == "json" ]]; then
          json=$(cat "$inFile")
        fi
+
+       # Import the JSON
        dock::import "$outFile" "$json"
     fi
 
