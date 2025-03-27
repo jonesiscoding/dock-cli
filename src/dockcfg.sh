@@ -121,6 +121,14 @@ function is-special-app() {
   echo "$1" | tr '[:upper:]' '[:lower:]' | grep -q "$1"
 }
 
+# @description Evaluates if the given file is a native macOS dock plist by checking for the tilesize parameter.
+# @arg $1 Path to Plist
+# @exitcode 0 Native
+# @exitcode 1 Not Native
+function is-native-dock-plist() {
+  $binPlb -c 'Print :tilesize' "$1" 2>&1 | grep -vq "Exist"
+}
+
 # @description Reloads the preferences, then kills the Dock process.
 # @noargs
 # @exitcode 0 Success
@@ -1038,7 +1046,8 @@ while [ "$1" != "" ]; do
   # Check for our added flags
   case "$1" in
       --json )                    outFormat="json";       ;;
-      --yaml )                    outFormat="yaml"       ;;
+      --yaml )                    outFormat="yaml"        ;;
+      --prefs )                   outFormat="plist"       ;;
       --user )                    myUser="$2";         shift ;;
       --out  )                    outFile="$2";          shift ;;
       --in   )                    inFile="$2";           shift ;;
@@ -1109,6 +1118,8 @@ if [[ "$inFile:e" == "plist" ]]; then
   case "$outFormat" in
     yaml)
       dock::create "$inFile" | yq -P > "$outFile" ;;
+    plist)
+      dock::create "$inFile" | plutil -convert xml1 -o "$outFile" - ;;
     json)
       if [[ "$outFile" == "/dev/stdout" ]]; then
         jq <<< "$(dock::create "$inFile")"
@@ -1121,8 +1132,8 @@ if [[ "$inFile:e" == "plist" ]]; then
 elif [ -n "$outFile" ] && [[ "$outFile:e" == "plist" ]]; then
   [ -z "$outFormat" ] && outFormat="plist"
   if [ -n "$inFile" ]; then
-     if [[ "$inFile:e" == "plist" ]]; then
-       # Just Copy It
+     if is-native-dock-plist "$inFile"; then
+       # Native Apple Dock Plist - Just Copy
        cp "$inFile" "$outFile"
      else
        if [[ "$inFile:e" == "yaml" ]]; then
