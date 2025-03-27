@@ -1222,13 +1222,14 @@ isRestart=true
 while [ "$1" != "" ]; do
   # Check for our added flags
   case "$1" in
-      --json )                    outFormat="json";       ;;
-      --yaml )                    outFormat="yaml"        ;;
+      --no-restart )              isRestart=false              ;;
+      --json )                    outFormat="json";            ;;
+      --yaml )                    outFormat="yaml"             ;;
       --mobileconfig )            outFormat="mobileconfig"     ;;
       --prefs )                   outFormat="plist"            ;;
       --managed )                 isManaged=true               ;;
       --default )                 isDefault=true               ;;
-      --user )                    myUser="$2";         shift ;;
+      --user )                    myUser="$2";           shift ;;
       --out  )                    outFile="$2";          shift ;;
       --in   )                    inFile="$2";           shift ;;
       -h | --help )               output::usage;                            exit; ;; # quit and show usage
