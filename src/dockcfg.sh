@@ -47,9 +47,9 @@ specialApps=$(cat <<EOF
 EOF
 )
 
-## region ###################################### Jamf Functions
+## region ###################################### MDM Functions
 
-# @description Determines if the script is being run by Jamf
+# @description Evaluates if the script is being run by Jamf
 # @retval 0 Run via Jamf
 # @retval 1 Not run via Jamf
 function __isJamfRun() {
@@ -80,10 +80,17 @@ fi
 
 ## region ###################################### File Functions
 
+# @description Removes the file:// schema, specific encoding, and trailing slashes.
+# @arg $1 string The File URL to normalize
+# @stdout string Normalized String
 function file::normalize() {
   echo "$1" | sed 's#file://##' | sed 's#%20# #g' | sed 's#%7C#|#g' | sed -E 's#/$##'
 }
 
+# @description Evaluates if the given path is an app bundle, excluding webapps.
+# @arg $1 string Path
+# @exitcode 0 Yes
+# @exitcode 1 No
 function posix::is::app() {
   if test -f "$1/Contents/Info.plist"; then
     ! posix::is::webapp "$1"
@@ -92,6 +99,10 @@ function posix::is::app() {
   fi
 }
 
+# @description Evaluates if the given path is a webapp bundle
+# @arg $1 string Path
+# @exitcode 0 Yes
+# @exitcode 1 No
 function posix::is::webapp() {
   if test -f "$1/Contents/Info.plist"; then
     defaults read "$1/Contents/Info.plist" CFBundleIdentifier | grep -qE "$webappPattern" && return 0
@@ -100,6 +111,10 @@ function posix::is::webapp() {
   return 1
 }
 
+# @description Evaluates if the given path is a webapp, crwebloc, or webloc.
+# @arg $1 string Path
+# @exitcode 0 Yes
+# @exitcode 1 No
 function posix::is::url() {
   if posix::is::webapp "$1"; then
     return 0
@@ -114,6 +129,11 @@ function posix::is::url() {
 
 ## region ###################################### App Handling Functions
 
+# @description Evaluates if the given path is a webapp bundle
+# @arg $1 string JSON array of paths
+# @stdout string First Existing Path
+# @exitcode 0 Path Found
+# @exitcode 1 No Path Found
 function app::paths::exists() {
   local i
   jq -c '.[]' <<< "$1" | while read i; do
@@ -125,10 +145,21 @@ function app::paths::exists() {
   return 1
 }
 
+# @description Returns the path to a PDF reading app, typically either Acrobat Pro, Acrobat Reader, or Preview.
+# @noargs
+# @stdout string Path to App
+# @exitcode 0 Path Found
+# @exitcode 1 No Path Found
 function app::special::acrobat() {
   app::paths::exists "$(jq '.acrobat.paths' <<< "$specialApps")"
 }
 
+# @description Returns the path to the given Adobe app. If a year is given as part of the parameter, only apps named
+# with that year or older will be considered.  No app older than 2014 is considered.
+# @arg $1 string Lowercase single-word app description, with or without the year (photoshop-2025)
+# @stdout string Path to App
+# @exitcode 0 Path Found
+# @exitcode 1 No Path Found
 function app::special::adobe() {
   local adobePaths name year
 
@@ -150,6 +181,11 @@ function app::special::adobe() {
   return 1
 }
 
+# @description Returns the path to the given app, checking the paths in specialApps.system.paths.
+# @arg $1 string Slug for app; dash-separated (screen-sharing)
+# @stdout string Path to App
+# @exitcode 0 Path Found
+# @exitcode 1 No Path Found
 function app::system() {
   local name
 
@@ -165,6 +201,11 @@ function app::system() {
   return 1
 }
 
+# @description Returns the path to the given special app, checking the paths in specialApps.
+# @arg $1 string Slug for app; dash-separated (screen-sharing)
+# @stdout string Path to App
+# @exitcode 0 Path Found
+# @exitcode 1 No Path Found
 function app::special() {
   local app
 
@@ -200,6 +241,11 @@ function app::special() {
   esac
 }
 
+# @description Returns the path to the given app slug or name
+# @arg $1 string Slug or Name for app
+# @stdout string Path to App
+# @exitcode 0 Path Found
+# @exitcode 1 No Path Found
 function app::resolve() {
   name="$1"
   app="$name"
@@ -234,6 +280,11 @@ function app::resolve() {
   return 1
 }
 
+# @description Returns a name or slug for the given app bundle
+# @arg $1 string Path to App
+# @stdout string Summary String
+# @exitcode 0 Path Found
+# @exitcode 1 No Path Found
 function app::summarize() {
   local posix
 
@@ -274,6 +325,9 @@ function app::summarize() {
 
 ## region ###################################### Folder Functions
 
+# @description Converts folder 'show' constants to strings.
+# @arg $1 integer Constant
+# @stdout string  The String
 function folder::show::toString() {
   case "$1" in
     3) echo "list" ;;
@@ -283,6 +337,9 @@ function folder::show::toString() {
   esac
 }
 
+# @description Converts folder 'show' strings to constants.
+# @arg $1 string  The String
+# @stdout integer Constant
 function folder::show::toInt() {
   case "$1" in
     list) echo "3" ;;
@@ -292,6 +349,9 @@ function folder::show::toInt() {
   esac
 }
 
+# @description Converts folder 'displayas' strings to constants.
+# @arg $1 string  The String
+# @stdout integer Constant
 function folder::display::toInt() {
   case "$1" in
     folder)  echo "1" ;;
@@ -299,6 +359,9 @@ function folder::display::toInt() {
   esac
 }
 
+# @description Converts folder 'displayas' constants to strings.
+# @arg $1 integer Constant
+# @stdout string  The String
 function folder::display::toString() {
   case "$1" in
     1) echo "folder"  ;;
@@ -306,6 +369,9 @@ function folder::display::toString() {
   esac
 }
 
+# @description Converts folder 'arrangement' strings to constants.
+# @arg $1 string  The String
+# @stdout integer Constant
 function folder::sort::toInt() {
   case "$1" in
     kind)            echo "5" ;;
@@ -316,6 +382,9 @@ function folder::sort::toInt() {
   esac
 }
 
+# @description Converts folder 'arrangement' constants to strings.
+# @arg $1 integer Constant
+# @stdout string  The String
 function folder::sort::toString() {
   case "$1" in
     5) echo "kind"  ;;
@@ -330,16 +399,26 @@ function folder::sort::toString() {
 
 ## region ###################################### JSON Functions
 
+# @description Evaluates if the given string resembles a JSON object string
+# @exitcode 0 Yes
+# @exitcode 1 No
 function json-is-object() {
   [[ "${1:0:1}" == "{" ]] && return 0
   return 1
 }
 
+# @description Evaluates if the given string resembles a JSON array string
+# @exitcode 0 Yes
+# @exitcode 1 No
 function json-is-array() {
   [[ "${1:0:1}" == "[" ]] && return 0
   return 1
 }
 
+# @description Adds the given arguments to the given JSON object string. Multiple key/value pairs can be given.
+# @arg $1 string JSON Object String
+# @arg $2 string Key
+# @arg $3 string Value
 function json-obj-add() {
   local obj
 
@@ -358,6 +437,9 @@ function json-obj-add() {
   echo "$obj"
 }
 
+# @description Adds the given value to the given JSON array string
+# @arg $1 string JSON array String
+# @arg $2 string Value
 function json-arr-add() {
   if json-is-object "$2" || json-is-array "$2"; then
     jq ". += [ $2 ]" <<< "$1"
@@ -795,7 +877,6 @@ function dock::create() {
         jsonArr=$(json-arr-add "$jsonArr" "$tile")
       fi
     done
-#    [[ "$tSection" == "persistent-others" ]] && echo "$jsonArr"
     jsonObj=$(json-obj-add "$jsonObj" "$tSection" "$jsonArr")
   done
 
