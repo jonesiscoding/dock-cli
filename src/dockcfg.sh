@@ -1057,7 +1057,9 @@ set-yq || exit 10
 if [ -z "$myUser" ]; then
   if [ -n "$jamfUser" ]; then
     myUser="$jamfUser"
-  elif [ -n "$USER" ] && [[ "$USER" != "root" ]]; then
+  elif [[ "$USER" == "root" ]]; then
+    myUser=$(console::user)
+  elif [ -n "$USER" ]; then
     myUser="$USER"
   fi
 fi
