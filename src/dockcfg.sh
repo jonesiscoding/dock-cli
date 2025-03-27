@@ -129,6 +129,15 @@ function posix::is::url() {
 
 ## region ###################################### App Handling Functions
 
+function app::adobe::name() {
+  appName=$(dirname "$1")
+  if [[ "$appName" != "/Applications" ]]; then
+    basename "$appName"
+  else
+    basename "$1" .app
+  fi
+}
+
 # @description Evaluates if the given path is a webapp bundle
 # @arg $1 string JSON array of paths
 # @stdout string First Existing Path
@@ -299,9 +308,9 @@ function app::summarize() {
     # Other Adobe App
     year="$(date +"%Y")"
     if echo "$posix" | grep -q "$(date +"%Y")"; then
-      getAdobeAppName "$posix" | sed "s/$year//" | sed 's/Adobe //' | tr '[:upper:]' '[:lower:]'
+      app::adobe::name "$posix" | sed "s/$year//" | sed 's/Adobe //' | tr '[:upper:]' '[:lower:]'
     else
-      getAdobeAppName "$posix" | sed -E "s/ ([0-9]+)/-\1/" | sed 's/Adobe //' | tr '[:upper:]' '[:lower:]'
+      app::adobe::name "$posix" | sed -E "s/ ([0-9]+)/-\1/" | sed 's/Adobe //' | tr '[:upper:]' '[:lower:]'
     fi
   elif echo "$posix" | grep -q -E "Safari\.app$"; then
     # Safari
