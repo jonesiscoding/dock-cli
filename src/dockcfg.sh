@@ -89,6 +89,10 @@ fi
 
 ## region ###################################### Output Functions
 
+function output::bundle() {
+  echo "$plistFile" | sed "s/com.apple/$(prefs::bundlePrefix)/" | sed 's/.plist//'
+}
+
 function output::mobileconfig() {
   local json bp bn pfUuid plUuid isStdOut sections
   local tSection entry tile key eKey eValue x
@@ -1229,11 +1233,13 @@ while [ "$1" != "" ]; do
       --prefs )                   outFormat="plist"            ;;
       --managed )                 isManaged=true               ;;
       --default )                 isDefault=true               ;;
+      --prefix )                  MDM_BUNDLE_PREFIX="$2" shift ;;
       --user )                    myUser="$2";           shift ;;
       --out  )                    outFile="$2";          shift ;;
       --in   )                    inFile="$2";           shift ;;
       -h | --help )               output::usage;                            exit; ;; # quit and show usage
       --version )                 output::version;                          exit; ;; # quit and show usage
+      --bundleid )                output::bundle;        exit; ;; # quit and bundle id
       * )                         file="$1"              # if no match, add it to the positional args
   esac
   shift # move to next kv pair
