@@ -1,5 +1,28 @@
 #!/bin/zsh
 
+# @brief dock-cli
+# @description CLI tool to import or export macOS dock configurations
+#
+# @version 1.0
+# @copyright Copyright (C) 2025 AMJones <am@jonesiscoding.com>
+# @license https://github.com/jonesiscoding/mac-dock-cli/blob/main/LICENSE
+#
+# @arg $1 string Path to Input or Output File (depending on additional flags)
+# @option --out <path> string Export Path
+# @option --yaml                   Export in YAML format
+# @option --json                   Export in JSON format
+# @option --mobileconfig           Export in the format of a Configuration Profile
+# @option --plist                  Export in plist format
+# @option --in <path>       string Import Path (defaults to current user's com.apple.dock.plist)
+# @option --user            string Dock User (defaults to current user)
+# @option --managed                Import from Configuration Profile
+# @option --prefs                  Import from System or User Preferences
+# @option --prefix <prefix> string Override the bundle ID prefix for this utility
+# @option --bundleid               Display the Bundle ID, then quit
+# @option --schema                 Show a JAMF JSON schema for configuring this utility
+# @option --version                Display version, then exit
+# @option --help                   Display help text, then exit
+
 # macOS Specific Variables
 plistFile="com.apple.dock.plist"
 plistDir="Library/Preferences"
@@ -91,6 +114,58 @@ fi
 
 function output::bundle() {
   echo "$plistFile" | sed "s/com.apple/$(prefs::bundlePrefix)/" | sed 's/.plist//'
+}
+
+function output::version() {
+  echo "dock-cli v${myVersion}"
+}
+
+# @description Displays the help text for this command
+# @noargs
+function output::usage() {
+    echo ""
+    echo "$(output::version):"
+    echo "  Imports a macOS dock from a yaml, json, plist, or configuration profile, or exports a macOS dock in plain"
+    echo "  text, Yaml, or JSON format."
+    echo ""
+    echo "Syntax Examples:"
+    echo ""
+    echo "  (export dock for current user)    dock --<yaml|json|profile|prefs> <output_path>"
+    echo "  (export dock for specific user)   sudo dock --<yaml|json> --user <username> <output_path>"
+    echo "  (import dock for specific user)   sudo dock --in <config_path> --user <username>"
+    echo "  (import dock from config profile) sudo dock --managed --user <username>"
+    echo "  (import dock from system prefs)   sudo dock --prefs --user <username>"
+    echo ""
+    echo "Export Arguments and Flags:"
+    echo "  <path>            Export Path"
+    echo "  --out <path>      Export Path"
+    echo "  --yaml            Export in Yaml format"
+    echo "  --json            Export in JSON format"
+    echo "  --in <path>       Alternate path to dock plist"
+    echo "  --user            Dock User (Defaults to console user; except when run via JAMF policy)"
+    echo "                              (When run via JAMF policy, defaults to username provided by JAMF)"
+    echo ""
+    echo "Import Arguments and Flags:"
+    echo "  <path>            Import Path"
+    echo "  --in <path>       Import Path"
+    echo "  --managed         Import from Managed Configuration Profile"
+    echo "  --prefs           Import from System or User Preferences"
+    echo "  --prefix          Bundle prefix to use with --managed|prefs. Defaults:"
+    echo "                    - \$MDM_BUNDLE_PREFIX environment variable"
+    echo "                    - Domain portion of hostname, reversed (com.domain)"
+    echo "                    - Reversed JAMF server hostname (com.jamfcloud.myorg)"
+    echo "                    - org.yourname"
+    echo "  --out <path>      Alternate Output Path (Defaults to /<user_dir>/Library/Preferences/com.apple.dock.plist)"
+    echo "  --user            Dock User (Defaults to console user; except when run via JAMF policy)"
+    echo "                              (When run via JAMF policy, defaults to username provided by JAMF)"
+    echo ""
+    echo "Other Flags:"
+    echo "  --bundleid        Shows the detected bundle ID & quits."
+    echo "  --schema          Shows JAMF Schema & quits."
+    echo "  --profile         Shows Configuration Profile & quits"
+    echo "  --version         Shows version & quits."
+    echo "  --help            Shows this help text & quits."
+    echo ""
 }
 
 # @description JSON Schema for the Applications & Custom Settings payload
@@ -1319,8 +1394,8 @@ while [ "$1" != "" ]; do
       --user )                    myUser="$2";           shift ;;
       --out  )                    outFile="$2";          shift ;;
       --in   )                    inFile="$2";           shift ;;
-      -h | --help )               output::usage;                            exit; ;; # quit and show usage
-      --version )                 output::version;                          exit; ;; # quit and show usage
+      -h | --help )               output::usage;         exit; ;; # show usage and quit
+      --version )                 output::version;       exit; ;; # show version and quit
       --bundleid )                output::bundle;        exit; ;; # show bundle id and quit
       --schema )                  output::schema;        exit; ;; # show schema and quit
       * )                         file="$1"              # if no match, add it to the positional args
