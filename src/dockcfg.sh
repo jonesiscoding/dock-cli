@@ -93,6 +93,88 @@ function output::bundle() {
   echo "$plistFile" | sed "s/com.apple/$(prefs::bundlePrefix)/" | sed 's/.plist//'
 }
 
+# @description JSON Schema for the Applications & Custom Settings payload
+# @noargs
+# @stdout string JSON Schema
+function output-schema() {
+  local bid
+
+  bid=$(output::bundle)
+  cat <<HEREDOC
+{
+  "title": "dock-cli ($bid)",
+  "description": "Settings for the dock-cli script",
+  "links": [
+    {
+      "rel": "Source",
+      "href": "https://github.com/jonesiscoding/mac-dock-cli"
+    },
+  ],
+  "properties": {
+    "persistent-apps": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "title": "Applications",
+      "default": [],
+      "description": "Persistent Applications",
+      "property_order": 5
+    },
+    "persistent-others": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "label": {
+            "title": "Label",
+            "type": "string"
+          },
+          "url": {
+            "title": "Path or Link",
+            "type": "string"
+          },
+          "display": {
+            "title": "Folder Display",
+            "type": "string",
+            "enum": [
+              "folder",
+              "stack"
+            ]
+          },
+          "view": {
+            "title": "Folder View",
+            "type": "string",
+            "enum": [
+              "auto",
+              "fan",
+              "grid",
+              "list"
+            ]
+          },
+          "sort": {
+            "title": "Folder Sort",
+            "type": "string",
+            "enum": [
+              "name",
+              "dateadded",
+              "datemodified",
+              "datecreated",
+              "kind"
+            ]
+          }
+        }
+      },
+      "title": "Other",
+      "default": [],
+      "description": "Persistent Other",
+      "property_order": 10
+    }
+  }
+}
+HEREDOC
+}
+
 function output::mobileconfig() {
   local json bp bn pfUuid plUuid isStdOut sections
   local tSection entry tile key eKey eValue x
@@ -1239,7 +1321,8 @@ while [ "$1" != "" ]; do
       --in   )                    inFile="$2";           shift ;;
       -h | --help )               output::usage;                            exit; ;; # quit and show usage
       --version )                 output::version;                          exit; ;; # quit and show usage
-      --bundleid )                output::bundle;        exit; ;; # quit and bundle id
+      --bundleid )                output::bundle;        exit; ;; # show bundle id and quit
+      --schema )                  output::schema;        exit; ;; # show schema and quit
       * )                         file="$1"              # if no match, add it to the positional args
   esac
   shift # move to next kv pair
