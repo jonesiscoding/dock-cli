@@ -1412,7 +1412,7 @@ if [ -z "$myUser" ]; then
   if [ -n "$jamfUser" ]; then
     myUser="$jamfUser"
   elif [[ "$USER" == "root" ]]; then
-    myUser=$(console::user)
+    myUser=$(user::console)
   elif [ -n "$USER" ]; then
     myUser="$USER"
   fi
