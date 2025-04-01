@@ -3,7 +3,7 @@
 # @brief dock-cli
 # @description CLI tool to import or export macOS dock configurations
 #
-# @version 1.0.1
+# @version 1.0.3
 # @copyright Copyright (C) 2025 AMJones <am@jonesiscoding.com>
 # @license https://github.com/jonesiscoding/mac-dock-cli/blob/main/LICENSE
 #
@@ -35,7 +35,7 @@ position="0"
 section="persistent-apps"
 
 # Internal Variables
-myVersion="1.0.2"
+myVersion="1.0.3"
 binJQ="" # Set Via Function
 binYQ="" # Set Via Function
 
@@ -712,6 +712,7 @@ function app::summarize() {
       replace=$(echo "$i" | sed "s/###name###//g")
       if echo "$posix" | grep -q -E "^$replace"; then
         echo "$posix" | sed -E "s#^$replace##" | sed -E 's#.app$##'
+        return 0
       fi
     done
   fi
