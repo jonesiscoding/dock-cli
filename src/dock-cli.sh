@@ -3,7 +3,7 @@
 # @brief dock-cli
 # @description CLI tool to import or export macOS dock configurations
 #
-# @version 1.0
+# @version 1.0.1
 # @copyright Copyright (C) 2025 AMJones <am@jonesiscoding.com>
 # @license https://github.com/jonesiscoding/mac-dock-cli/blob/main/LICENSE
 #
@@ -35,7 +35,7 @@ position="0"
 section="persistent-apps"
 
 # Internal Variables
-myVersion="1.0"
+myVersion="1.0.1"
 binJQ="" # Set Via Function
 binYQ="" # Set Via Function
 
