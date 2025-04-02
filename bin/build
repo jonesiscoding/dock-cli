@@ -9,7 +9,7 @@ errText=""
 # Git Derived
 xGit=$(which git)
 diff=$($xGit diff-index HEAD --)
-oVer=$($xGit describe --abbrev=0 2> /dev/null | /usr/bin/sed 's/^v//')
+oVer=$($xGit describe --abbrev=0 --tags 2> /dev/null | /usr/bin/sed 's/^v//')
 [ -z "$oVer" ] && oVer="1.0.0"
 nVer="$oVer"
 
