@@ -1,0 +1,160 @@
+#!/usr/bin/env zsh
+
+## region ############################################## Variables
+
+# Static Variables
+myName="dock-cli"
+errText=""
+
+# Git Derived
+xGit=$(which git)
+diff=$($xGit diff-index HEAD --)
+oVer=$($xGit describe --abbrev=0 2> /dev/null | /usr/bin/sed 's/^v//')
+[ -z "$oVer" ] && oVer="1.0.0"
+nVer="$oVer"
+
+# Path Variables
+myPath="${0:a:h}"
+projPath=$(/usr/bin/dirname "$myPath")
+distPath="${projPath}/dist"
+buildPath="${distPath}/build"
+srcPath="${projPath}/src"
+srcFile="${srcPath}/${myName}.sh"
+destFile="${distPath}/${myName}"
+projFile="${srcPath}/${myName}.pkgproj"
+[ ! -d "distPath" ] && /bin/mkdir -p "$distPath"
+
+## endregion ################################### End Variables
+
+## region ###################################### Version Functions
+
+# @description Extracts the major component of a version number.
+# @arg $1 string Version
+# @stdout string Major Component
+version::major() {
+  echo "$1" | /usr/bin/awk -F'.' '{ print $1 }'
+}
+
+# @description Extracts the minor component of a version number.
+# @arg $1 string Version
+# @stdout string Minor Component
+version::minor() {
+  echo "$1" | /usr/bin/awk -F'.' '{ print $2 }'
+}
+
+# @description Extracts the revision component of a version number.
+# @arg $1 string Version
+# @stdout string Minor Component
+version::revision() {
+  echo "$1" | /usr/bin/awk -F'.' '{ print $3 }'
+}
+
+# @description Increments a the version number
+# @noargs
+version::increment() {
+  local oMaj oMin oRev
+  local nMaj nMin nRev nBuild
+
+  oMaj=$(version::major "$oVer")
+  oMin=$(version::minor "$oVer")
+  oRev=$(version::revision "$oVer")
+
+  if $isMajor; then
+    nMaj=$((oMaj+1))
+    nRev="0"
+  else
+    nMaj="$oMaj"
+  fi
+
+  if $isMinor; then
+    nMin=$((oMin+1))
+    nRev="0"
+  elif $isMajor; then
+    nMin=0
+  else
+    nMin="$oMin"
+  fi
+
+  if $isPatch; then
+    nRev=$((oRev+1))
+  elif $isMajor || $isMinor; then
+    nRev=0
+  else
+    nRev="$oRev"
+  fi
+
+  nVer=$nMaj
+  if [ "$nMin" -gt "0" ] || [ "$nMin" -eq "0" ] || [ "$nRev" -gt "0" ] || [ -n "$DIFF" ]; then
+    nVer="$nVer.$nMin"
+  fi
+
+  if [ "$nRev" -gt "0" ]; then
+    nVer="$nVer.$nRev"
+  fi
+
+  if [ -n "$diff" ]; then
+    nBuild=$($xGit rev-parse --short HEAD)
+    nVer="$nVer-${nBuild}"
+  fi
+}
+
+## endregion ################################### Version Functions
+
+## region ###################################### Packages Build
+
+# @description Prepares the main script for distribution.
+# @noargs
+function build::script() {
+  /bin/cp "$srcFile" "$destFile"
+  /usr/bin/sed -i '' "s/###version###/$nVer/" "${destFile}"
+  return 0
+}
+
+# @description Builds the distribution package using Packages, then renames the output with the version number.
+# @noargs
+# @exitcode 0 Success
+# @exitcode 1 Failure
+function build::package() {
+  local retval logFile
+
+  logFile=$(/usr/bin/mktemp)
+  /usr/local/bin/packagesbuild --project "$projFile" --build-folder "$buildPath" --package-version "$nVer" >"$logFile" 2>&1
+  retval=$?
+  if [ "0" -eq "$retval" ]; then
+    mv "${buildPath}/${myName}.pkg" "${buildPath}/${myName}-${nVer}.pkg"
+    rm "$logFile"
+    return 0
+  else
+    errText=$(cat "$logFile")
+    rm "$logFile"
+    return 1
+  fi
+}
+
+## endregion ################################### Packages Build
+
+## region ###################################### Input Handling
+
+isMajor=false
+isMinor=false
+isPatch=false
+while [ "$1" != "" ]; do
+  # Check flags
+  case "$1" in
+    --major )                   isMajor=true;                ;;
+    --minor )                   isMinor=true;                ;;
+    --patch )                   isPatch=true;                ;;
+  esac
+  shift # move to next kv pair
+done
+
+## endregion ################################### Packages Build
+
+## region ###################################### Main Code
+
+! version::increment && echo "Error while Incrementing Version" && exit 1
+! build::script && echo "ERROR Building Script" && exit 1
+! build::package && echo "ERROR Building Package:" && echo "$errText" && exit 1
+exit 0
+
+## endregion ################################### End Main Code
