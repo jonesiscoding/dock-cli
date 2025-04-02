@@ -35,7 +35,7 @@ position="0"
 section="persistent-apps"
 
 # Internal Variables
-myVersion="1.0.3"
+myVersion="###version###"
 binJQ="" # Set Via Function
 binYQ="" # Set Via Function
 
