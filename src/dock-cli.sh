@@ -66,13 +66,12 @@ specialApps=$(cat <<EOF
   "system": {
     "paths":
       [
-        "/Applications/###name###",
-        "/Applications/Utilities/###name###",
-        "/System/Applications/###name###",
-        "/System/Applications/Utilities/###name###",
-        "/System/Applications/Utilities/###name###",
+        "/System/Volumes/Preboot/Cryptexes/App/System/Applications/###name###",
         "/System/Library/CoreServices/Applications/###name###",
-        "/System/Volumes/Preboot/Cryptexes/App/System/Applications/###name###"
+        "/System/Applications/Utilities/###name###",
+        "/System/Applications/###name###",
+        "/Applications/Utilities/###name###",
+        "/Applications/###name###"
       ]
   }
 }
