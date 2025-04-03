@@ -858,7 +858,7 @@ plist::tile::type() {
 }
 
 plist::webapp::url() {
-   plist::print ":Manifest:start_url" "$1"
+   plist::print ":Manifest:start_url" "$1" || plist::print ":CrAppModeShortcutURL" "$1"
 }
 
 plist::webloc::url() {
@@ -870,7 +870,7 @@ plist::webloc::name() {
 }
 
 plist::webapp::name() {
-  plist::print ":CFBundleName" "$1"
+  plist::print ":CFBundleName" "$1" || plist::print ":CrAppModeShortcutName" "$1"
 }
 
 plist::tile::data() {
