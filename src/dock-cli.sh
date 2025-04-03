@@ -1074,7 +1074,7 @@ function tile::create::directory() {
   sortI=$(plist::tile::data arrangement)
   dispS=$(folder::display::toString "$dispI")
   showS=$(folder::show::toString "$showI")
-  sortS=$(folder::sort::toString "$sortS")
+  sortS=$(folder::sort::toString "$sortI")
 
   file=$(plist::tile::file)
   label=$(plist::tile::label)
