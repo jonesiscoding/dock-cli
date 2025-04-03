@@ -984,7 +984,7 @@ _findUrlApp() {
 }
 
 plist::dock::add::url() {
-  local index url file label bundle json
+  local index url label json
 
   index="$1"
   json="$2"
@@ -1008,7 +1008,7 @@ plist::dock::add::url() {
 }
 
 plist::dock::add::directory() {
-  local index url file label bundle json
+  local index url file label json
   local showI dispI sortI showS dispS sortS
 
   index="$1"
@@ -1136,8 +1136,6 @@ tile::resolve::app() {
   label=$(defaults read "$app/Contents/Info.plist" CFBundleDisplayName 2>/dev/null)
   [ -z "$label" ] && label=$(basename "$app" | sed 's/.app$//' )
   [ -z "$bundle" ] && return 1
-
-
 
   json-obj-add "{}" url "$app" label "$label" "bundle-identifier" "$bundle" type "app-tile"
 }
