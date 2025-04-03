@@ -482,8 +482,16 @@ function posix::is::app() {
   if test -f "$1/Contents/Info.plist"; then
     ! posix::is::webapp "$1"
   else
-    echo "$1" | grep -E "^/System/Applications" | grep -q -E ".app$"
+    echo "$1" | grep -E "^/Applications" | grep -q -E "\.terminal$"
   fi
+}
+
+# @description Evaluates if the given path is a terminal profile.
+# @arg $1 string Path
+# @exitcode 0 Yes
+# @exitcode 1 No
+function posix::is::terminal() {
+  echo "$1" | grep -E "^(/Applications|$myUserDir/Applications)" | grep -q -E "\.terminal$"
 }
 
 # @description Evaluates if the given path is a webapp bundle
@@ -644,6 +652,7 @@ function app::special() {
 # @exitcode 1 No Path Found
 function app::resolve() {
   name="$1"
+  ext="${2:-app}"
   app="$name"
 
   # Absolute Path
@@ -658,7 +667,7 @@ function app::resolve() {
   fi
 
   # Extension
-  [ -z "$app:e" ] && app="${app}.app"
+  [ -z "$app:e" ] && app="${app}.${ext}"
 
   # User Path
   [[ "${app:0:1}" == "~" ]] && app=$(echo "$app" | sed "s#~#$myUserDir#")
@@ -695,9 +704,9 @@ function app::summarize() {
     # Other Adobe App
     year="$(date +"%Y")"
     if echo "$posix" | grep -q "$(date +"%Y")"; then
-      app::adobe::name "$posix" | sed "s/$year//" | sed 's/Adobe //' | tr '[:upper:]' '[:lower:]'
+      app::adobe::name "$posix" | sed "s/$year//" | sed 's/Adobe //' | sed 's/ /-/' | tr '[:upper:]' '[:lower:]' | xargs
     else
-      app::adobe::name "$posix" | sed -E "s/ ([0-9]+)/-\1/" | sed 's/Adobe //' | tr '[:upper:]' '[:lower:]'
+      app::adobe::name "$posix" | sed -E "s/ ([0-9]+)/-\1/" | sed 's/Adobe //' | sed 's/ /-/' | tr '[:upper:]' '[:lower:]' | xargs
     fi
   elif echo "$posix" | grep -q -E "Safari\.app$"; then
     # Safari
@@ -711,7 +720,7 @@ function app::summarize() {
     jq -r -c '.[]' <<< "$systemPaths" | while read i; do
       replace=$(echo "$i" | sed "s/###name###//g")
       if echo "$posix" | grep -q -E "^$replace"; then
-        echo "$posix" | sed -E "s#^$replace##" | sed -E 's#.app$##'
+        echo "$posix" | sed -E "s#^$replace##" | sed -E 's#.app$##' | sed -E 's#.terminal##'
         return 0
       fi
     done
@@ -1066,6 +1075,16 @@ function tile::create::app() {
   json-obj-add "{}" url "$app" label "$label" "bundle-identifier" "$bundle" type "app-tile"
 }
 
+function tile::create::terminal() {
+  local label posix app
+
+  posix=$(plist::tile::file)
+  app="$(app::summarize "$posix")"
+  label=$(plist::tile::label | sed -E 's/\.terminal$//')
+
+  json-obj-add "{}" url "$app" label "$label" type "terminal-tile"
+}
+
 function tile::create::directory() {
   local file label showI dispI sortI showS dispS sortS
 
@@ -1140,7 +1159,17 @@ tile::resolve::app() {
   json-obj-add "{}" url "$app" label "$label" "bundle-identifier" "$bundle" type "app-tile"
 }
 
+tile::resolve::terminal() {
+  local term label
+
+  term="$1"
+  label=$(basename "$app" | sed -E 's/\.terminal$//' )
+
+  json-obj-add "{}" url "$app" label "$label" type "terminal-tile"
+}
+
 tile::resolve() {
+  local appPath termPath
   if [[ "${1:0:1}" != "{" ]]; then
     if [[ "${1:0:4}" == "http" ]]; then
       # URL
@@ -1151,9 +1180,12 @@ tile::resolve() {
     else
       # App or File
       appPath=$(app::resolve "$1")
+      [ -z "$appPath" ] && termPath=$(app::resolve "$1" "terminal")
       if [ -n "$appPath" ]; then
         # App
         tile::resolve::app "$appPath"
+      elif [ -n "$termPath" ]; then
+        tile::resolve::terminal "$appPath"
       elif [ -f "$1" ]; then
         # File
         json-obj-add "{}" url "$file" label "$label" type "file-tile"
@@ -1217,6 +1249,8 @@ function dock::tile::create() {
       file=$(plist::tile::file)
       if posix::is::url "$file"; then
         json="$(tile::create::url)"
+      elif posix::is::terminal "$file"; then
+        json=$(tile::create::terminal)
       elif posix::is::app "$file"; then
         json=$(tile::create::app)
       else
@@ -1259,14 +1293,14 @@ function dock::create() {
 
     jsonArr="[]"
     for tile in $tiles; do
-      if jq -r '.type' <<< "$tile" | grep -q "app-tile"; then
+      if jq -r '.type' <<< "$tile" | grep -qE "(app|terminal)-tile"; then
         url=$(tile::url "$tile")
         label=$(tile::label "$tile")
         if is-special-app "$url"; then
           jsonArr=$(json-arr-add "$jsonArr" "$url")
         elif [[ "$label" == "$url" ]]; then
           jsonArr=$(json-arr-add "$jsonArr" "$url")
-        elif [[ "$(echo "$url" | sed "s#~/Applications/##" | sed -E "s#.app##")" == "$label" ]]; then
+        elif [[ "$(echo "$url" | sed "s#~/Applications/##" | sed -E "s#.(app|terminal)##")" == "$label" ]]; then
           jsonArr=$(json-arr-add "$jsonArr" "$url")
         else
           jsonArr=$(json-arr-add "$jsonArr" "$tile")
