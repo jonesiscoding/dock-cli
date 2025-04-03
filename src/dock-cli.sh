@@ -1099,9 +1099,9 @@ function tile::create::url() {
     info="$file/Contents/Info.plist"
     if [ -f "$info" ]; then
       bundle=$(defaults read "$info" "CFBundleIdentifier" 2>/dev/null)
-      if echo "$bundle" | grep -q "edgemac"; then
+      if echo "$bundle" | grep -qi "edgemac"; then
         brow="edge"
-      elif echo "$bundle" | grep -q "chrome"; then
+      elif echo "$bundle" | grep -qi "chrome"; then
         brow="chrome"
       else
         brow="safari"
