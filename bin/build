@@ -5,6 +5,8 @@
 # Static Variables
 myName="dock-cli"
 errText=""
+myChain=""
+myIdent=""
 
 # Git Derived
 xGit=$(which git)
@@ -115,12 +117,26 @@ function build::script() {
 # @exitcode 0 Success
 # @exitcode 1 Failure
 function build::package() {
-  local retval logFile
+  local retval logFile args
 
+  # Build packagesbuild Arguments
+  typeset -a args
+  args=(--project "$projFile" --build-folder "$buildPath" --package-version "$nVer")
+  if [ -n "$myIdent" ]; then
+    args+=(--identity "$myIdent")
+    if [ -n "$myChain" ]; then
+      args+=(--keychain "$myChain")
+    fi
+  fi
+
+  # Temporary Location for Output
   logFile=$(/usr/bin/mktemp)
-  /usr/local/bin/packagesbuild --project "$projFile" --build-folder "$buildPath" --package-version "$nVer" >"$logFile" 2>&1
+
+  # Run Command
+  /usr/local/bin/packagesbuild "${args[@]}" >"$logFile" 2>&1
   retval=$?
   if [ "0" -eq "$retval" ]; then
+    # Rename with Version in Filename
     mv "${buildPath}/${myName}.pkg" "${buildPath}/${myName}-${nVer}.pkg"
     rm "$logFile"
     return 0
@@ -144,9 +160,14 @@ while [ "$1" != "" ]; do
     --major )                   isMajor=true;                ;;
     --minor )                   isMinor=true;                ;;
     --patch )                   isPatch=true;                ;;
+    --identity )                myIdent="$2"; shift;         ;;
+    --keychain )                myChain="$2"; shift;         ;;
   esac
   shift # move to next kv pair
 done
+
+# Default to Login Keychain
+[ -n "$myIdent" ] && [ -z "$myChain" ] && myChain="$HOME/Library/Keychains/login.keychain"
 
 ## endregion ################################### Packages Build
 
