@@ -747,7 +747,7 @@ function folder::show::toString() {
     3) echo "list" ;;
     2) echo "grid" ;;
     1) echo "fan"  ;;
-    4) echo "auto" ;;
+    *) echo "auto" ;; # 4
   esac
 }
 
@@ -759,7 +759,7 @@ function folder::show::toInt() {
     list) echo "3" ;;
     grid) echo "2" ;;
     fan)  echo "1" ;;
-    auto) echo "4" ;;
+    *)    echo "4" ;; # auto
   esac
 }
 
@@ -768,8 +768,8 @@ function folder::show::toInt() {
 # @stdout integer Constant
 function folder::display::toInt() {
   case "$1" in
-    folder)  echo "1" ;;
     stack)   echo "2" ;;
+    *)       echo "1" ;; # folder
   esac
 }
 
@@ -778,8 +778,8 @@ function folder::display::toInt() {
 # @stdout string  The String
 function folder::display::toString() {
   case "$1" in
-    1) echo "folder"  ;;
     2) echo "stack"   ;;
+    *) echo "folder"  ;; # 1
   esac
 }
 
@@ -792,7 +792,7 @@ function folder::sort::toInt() {
     datecreated)     echo "4" ;;
     datemodified)    echo "3" ;;
     dateadded)       echo "2" ;;
-    name)            echo "1" ;;
+    *)               echo "1" ;; # name
   esac
 }
 
@@ -805,7 +805,7 @@ function folder::sort::toString() {
     4) echo "datecreated"  ;;
     3) echo "datemodified"  ;;
     2) echo "dateadded"  ;;
-    1) echo "name"   ;;
+    *) echo "name"   ;;  # 1
   esac
 }
 
