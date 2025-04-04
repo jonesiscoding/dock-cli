@@ -3,7 +3,7 @@
 # @brief dock-cli
 # @description CLI tool to import or export macOS dock configurations
 #
-# @version 1.0.3
+# @version ###version###
 # @copyright Copyright (C) 2025 AMJones <am@jonesiscoding.com>
 # @license https://github.com/jonesiscoding/mac-dock-cli/blob/main/LICENSE
 #
