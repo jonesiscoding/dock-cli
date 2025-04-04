@@ -33,6 +33,7 @@ binPlb=/usr/libexec/PlistBuddy
 # Internal Pointers
 position="0"
 section="persistent-apps"
+summaries=()
 
 # Internal Variables
 myVersion="###version###"
@@ -445,6 +446,14 @@ function is-special-app() {
   echo "$1" | tr '[:upper:]' '[:lower:]' | grep -q "$1"
 }
 
+function is-acrobat-app() {
+  echo "$1" | grep -q "acrobat"
+}
+
+function is-adobe-app() {
+  echo "$1" | grep -qE "(illustrator|indesign|photoshop|premiere-pro|bridge|animate|after-effects|lightroom)"
+}
+
 # @description Evaluates if the given file is a native macOS dock plist by checking for the tilesize parameter.
 # @arg $1 Path to Plist
 # @exitcode 0 Native
@@ -536,6 +545,17 @@ function app::adobe::name() {
     basename "$appName"
   else
     basename "$1" .app
+  fi
+}
+
+function app::adobe::summarize() {
+  local year
+
+  year="$(date +"%Y")"
+  if echo "$1" | grep -q "$(date +"%Y")"; then
+    app::adobe::name "$1" | sed "s/$year//" | sed 's/Adobe //' | tr '[:upper:]' '[:lower:]' | xargs | sed 's/ /-/'
+  else
+    app::adobe::name "$1" | sed -E "s/ ([0-9]+)/-\1/" | sed 's/Adobe //' | sed 's/ /-/' | tr '[:upper:]' '[:lower:]' | xargs
   fi
 }
 
@@ -693,6 +713,34 @@ function app::resolve() {
   return 1
 }
 
+function summary::used() {
+  local summary
+
+  for summary in $summaries; do
+    echo "$summary" | grep -q -E "$1" && return 0
+  done
+
+  return 1
+}
+
+function summary::is::highest() {
+  local year years summary highest
+
+  typeset -a years
+  for summary in $summaries; do
+    year=$(echo "$summary" | awk -F'-' '{ print $2 }')
+    years+=("$year")
+  done
+
+  highest=$(echo "${years[@]}" | tr ' ' '\n' | sort -nr | head -n 1)
+  input=$(echo "$1" | awk -F'-' '{ print $2 }')
+
+  [ -z "$input" ] && return 1
+  [ -z "$highest" ] && return 0
+  [ "$input" -eq "$highest" ] && return 0
+  return 1
+}
+
 # @description Returns a name or slug for the given app bundle
 # @arg $1 string Path to App
 # @stdout string Summary String
@@ -705,22 +753,17 @@ function app::summarize() {
   if echo "$posix" | grep -q -E "^/Users"; then
     # User App
     echo "$posix" | sed "s#$myUserDir#~#"
-  elif echo "$posix" | grep -q "Acrobat"; then
-    # Acrobat App
-    echo "acrobat"
-  elif echo "$posix" | grep -q "Adobe"; then
-    # Other Adobe App
-    year="$(date +"%Y")"
-    if echo "$posix" | grep -q "$(date +"%Y")"; then
-      app::adobe::name "$posix" | sed "s/$year//" | sed 's/Adobe //' | sed 's/ /-/' | tr '[:upper:]' '[:lower:]' | xargs
-    else
-      app::adobe::name "$posix" | sed -E "s/ ([0-9]+)/-\1/" | sed 's/Adobe //' | sed 's/ /-/' | tr '[:upper:]' '[:lower:]' | xargs
-    fi
+  elif echo "$posix" | grep -qE "Adobe (Acrobat Reader|Reader)\.app"; then
+    echo "acrobat-reader"
+  elif echo "$posix" | grep -qE "Adobe (Acrobat|Acrobat Pro)\.app"; then
+    echo "acrobat-pro"
+  elif echo "$posix" | grep -qE "Acrobat Distiller.app"; then
+    echo "distiller"
+  elif echo "$posix" | grep -qE "Adobe (Illustrator|InDesign|Photoshop|Premiere Pro|Bridge|Animate|After Effects|Lightroom)"; then
+    echo "$(app::adobe::summarize "$posix")"
   elif echo "$posix" | grep -q -E "Safari\.app$"; then
-    # Safari
     echo "safari"
   elif echo "$posix" | grep -q -E "Screen Sharing\.app$"; then
-    # Screen Sharing
     echo "screen-sharing"
   else
     # Other Apps
@@ -1344,7 +1387,7 @@ function dock::tile::create() {
 }
 
 function dock::create() {
-  local tile tiles x jsonArr tSection sections jsonObj
+  local tile tiles norm x jsonArr tSection sections jsonObj
 
   dock="$1"
   jsonObj="{}"
@@ -1364,11 +1407,34 @@ function dock::create() {
       x=$((x+1))
     done
 
+    # Build Summaries
+    for tile in $tiles; do
+      if jq -r '.type' <<< "$tile" | grep -q "app-tile"; then
+        url=$(tile::url "$tile")
+        if is-special-app "$url"; then
+          summaries+=("$url")
+        fi
+      fi
+    done
+
     jsonArr="[]"
     for tile in $tiles; do
       if jq -r '.type' <<< "$tile" | grep -qE "(app|terminal)-tile"; then
         url=$(tile::url "$tile")
         label=$(tile::label "$tile")
+
+        # Consolidate Acrobat & Adobe Years
+        if is-acrobat-app "$url"; then
+          # Favor Acrobat Pro
+          [[ "$url" == "acrobat-pro" ]] && url="acrobat"
+          # Only use 'acrobat' for 'acrobat-reader' if 'acrobat-pro' isn't present
+          [[ "$url" == "acrobat-reader" ]] && ! summary::used "^acrobat-pro$" && url="acrobat"
+        elif is-adobe-app "$url"; then
+          norm=$(echo "$url" | sed -E 's/-[0-9]+//')
+          ! summary::used "^$norm$" && summary::is::highest "$url" && url="$norm"
+        fi
+
+        # Create the JSON
         if is-special-app "$url"; then
           jsonArr=$(json-arr-add "$jsonArr" "$url")
         elif [[ "$label" == "$url" ]]; then
