@@ -52,6 +52,13 @@ specialApps=$(cat <<EOF
           "/System/Applications/Preview.app"
       ]
   },
+  "distiller": {
+    "paths":
+      [
+          "/Applications/Adobe Acrobat DC/Acrobat Distiller.app",
+          "/Applications/Adobe Acrobat XI Pro/Acrobat Distiller.app"
+      ]
+  },
   "adobe": {
     "paths":
       [
@@ -624,6 +631,8 @@ function app::special() {
         echo "/System/Applications/Utilities/Screen Sharing.app"
       fi
       ;;
+    distiller)
+      app::paths::exists "$(jq '.distiller.paths' <<< "$specialApps")" ;;
     acrobat)
       app::special::acrobat ;;
     photoshop* | indesign* | illustrator* | bridge* | lightroom* | animate* | after* | xd | dimension )
