@@ -1167,6 +1167,27 @@ tile::resolve::app() {
   json-obj-add "{}" url "$app" label "$label" "bundle-identifier" "$bundle" type "app-tile"
 }
 
+tile::resolve::directory() {
+  local dir label
+
+  dir="$1"
+  label="$2"
+  [ -z "$label" ] && label=$(dirname "$dir")
+  [[ "$label" == "/" ]] && label=$(echo "$dir" | sed -E 's#^/##')
+
+  json-obj-add "{}" url "$dir" label "$label" type "directory-tile" display "stack" sort "name" show "auto"
+}
+
+tile::resolve::file() {
+  local file label
+
+  file="$1"
+  label="$2"
+  [ -z "$label" ] && label="${file:t:r}"
+
+  json-obj-add "{}" url "$file" label "$label" type "file-tile"
+}
+
 tile::resolve::terminal() {
   local term label
 
@@ -1176,15 +1197,53 @@ tile::resolve::terminal() {
   json-obj-add "{}" url "$app" label "$label" type "terminal-tile"
 }
 
+tile::resolve::symlink() {
+  local symlink label real
+
+  symlink="$1"
+  label="$2"
+  real=$(realpath "$symlink")
+
+  if [ -d "$real" ]; then
+    [ -z "$label" ] && label=$(dirname "$symlink")
+    [[ "$label" == "/" ]] && label=$(dirname "$real")
+    [[ "$label" == "/" ]] && label="$symlink"
+    tile::resolve::directory "$real" "$label"
+  elif [ -f "$real" ]; then
+    # App or File
+    appPath=$(app::resolve "$1")
+    [ -z "$appPath" ] && termPath=$(app::resolve "$1" "terminal")
+    if [ -n "$appPath" ]; then
+      tile::resolve::app "$appPath"
+    elif [ -n "$termPath" ]; then
+      tile::resolve::terminal "$termPath"
+    else
+      tile::resolve::file "$symlink" "${1:t:r}"
+    fi
+  else
+    return 1
+  fi
+}
+
+tile::resolve::url() {
+  local url label
+
+  url="$1"
+  label=$(curl -L -s "$url" -o - | grep '<title>' | awk -F'<title>' '{ print $2 }' | awk -F'</title>' '{ print $1 }')
+  [ -z "$label" ] && label="$url"
+
+  json-obj-add "{}" url "$1" label "$label" type "url-tile" browser "any"
+}
+
 tile::resolve() {
   local appPath termPath
   if [[ "${1:0:1}" != "{" ]]; then
     if [[ "${1:0:4}" == "http" ]]; then
-      # URL
-      json-obj-add "{}" url "$url" label "$label" type "url-tile" browser "any"
+      tile::resolve::url "$1"
+    elif [ -L "$1" ]; then
+      tile::resolve::symlink "$1"
     elif [ -d "$1" ]; then
-      # Directory
-      json-obj-add "{}" url "$file" label "$label" type "directory-tile" display "stack" sort "name" show "auto"
+      tile::resolve::directory "$1"
     else
       # App or File
       appPath=$(app::resolve "$1")
@@ -1196,7 +1255,9 @@ tile::resolve() {
         tile::resolve::terminal "$appPath"
       elif [ -f "$1" ]; then
         # File
-        json-obj-add "{}" url "$file" label "$label" type "file-tile"
+        tile::resolve::file "$1"
+      else
+        return 1
       fi
     fi
   else
@@ -1255,12 +1316,16 @@ function dock::tile::create() {
   if [ -n "$type" ]; then
     if [[ "$type" == "file-tile" ]]; then
       file=$(plist::tile::file)
+      [ -L "$file" ] && file=$(/bin/realpath "$file")
       if posix::is::url "$file"; then
         json="$(tile::create::url)"
       elif posix::is::terminal "$file"; then
         json=$(tile::create::terminal)
       elif posix::is::app "$file"; then
         json=$(tile::create::app)
+      elif [ -d "$file" ]; then
+        label=$(plist::tile::label)
+        json=$(tile::resolve::directory "$file" "$label" )
       else
         json=$(tile::create::file)
       fi
