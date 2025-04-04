@@ -3,7 +3,7 @@
 # @brief dock-cli
 # @description CLI tool to import or export macOS dock configurations
 #
-# @version 1.0.3
+# @version ###version###
 # @copyright Copyright (C) 2025 AMJones <am@jonesiscoding.com>
 # @license https://github.com/jonesiscoding/mac-dock-cli/blob/main/LICENSE
 #
@@ -969,7 +969,6 @@ plist::dock::add::file() {
   url=$(tile::url "$json")
   file="file://$(echo "$url" | sed 's# #%20#g')"
   label=$(tile::label "$json")
-  bundle=$(tile::bundle "$json")
 
   plist::add::tile "$index"
 	plist::add::tileData "$index" " dict"
@@ -1235,9 +1234,9 @@ tile::resolve::terminal() {
   local term label
 
   term="$1"
-  label=$(basename "$app" | sed -E 's/\.terminal$//' )
+  label=$(basename "$term" | sed -E 's/\.terminal$//' )
 
-  json-obj-add "{}" url "$app" label "$label" type "terminal-tile"
+  json-obj-add "{}" url "$term" label "$label" type "terminal-tile"
 }
 
 tile::resolve::symlink() {
@@ -1295,7 +1294,7 @@ tile::resolve() {
         # App
         tile::resolve::app "$appPath"
       elif [ -n "$termPath" ]; then
-        tile::resolve::terminal "$appPath"
+        tile::resolve::terminal "$termPath"
       elif [ -f "$1" ]; then
         # File
         tile::resolve::file "$1"
@@ -1478,6 +1477,9 @@ function dock::import() {
           app*)
             echo "  Adding App: $(tile::label "$tile")"
             plist::dock::add::app "$x" "$tile" ;;
+          terminal*)
+            echo "  Adding Terminal: $(tile::label "$tile")"
+            plist::dock::add::file "$x" "$tile" ;;
           file*)
             echo "  Adding File: $(tile::label "$tile")"
             plist::dock::add::file "$x" "$tile" ;;
