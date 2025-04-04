@@ -443,7 +443,7 @@ function is-special-app() {
 # @exitcode 0 Native
 # @exitcode 1 Not Native
 function is-native-dock-plist() {
-  $binPlb -c 'Print :tilesize' "$1" 2>&1 | grep -vq "Exist"
+  [[ "${1:e}" == "plist" ]] && [ -f "$1" ] && $binPlb -c 'Print :tilesize' "$1" 2>&1 | grep -vq "Exist"
 }
 
 # @description Reloads the preferences, then kills the Dock process.
