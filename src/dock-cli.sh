@@ -28,6 +28,7 @@ plistFile="com.apple.dock.plist"
 plistDir="Library/Preferences"
 plistDirManaged="Library/Managed Preferences"
 webappPattern="(com.apple.Safari.WebApp|com.google.Chrome.app|com.microsoft.edgemac.app)"
+defaultPlist="System/Library/User Template/English.lproj/${plistDir}/${plistfile}"
 binPlb=/usr/libexec/PlistBuddy
 
 # Internal Pointers
@@ -467,6 +468,7 @@ function is-native-dock-plist() {
 # @exitcode 0 Success
 # @exitcode 1 Failure
 function reload-dock() {
+#  System/Library/User\ Template/English.lproj/Library/Preferences/com.apple.dock.plist
   local activateSettings="/System/Library/PrivateFrameworks/SystemAdministration.framework/Resources/activateSettings"
 
   if [ -f "$activateSettings" ] && [[ "$myUser" == "$USER" ]]; then
@@ -1503,7 +1505,7 @@ function dock::init() {
   if [ -n "$myUser" ] && [ -n "$myUserDir" ]; then
     if [ ! -f "$myFile" ]; then
       if echo "$myFile" | grep -qE "^$myUserDir"; then
-        cp "/${plistDir}/${plistFile}" "$myFile" || return 1
+        cp "$defaultPlist" "$myFile" || return 1
         chown "$myUser" "$myFile" || return 1
         myGrp=$(/usr/bin/stat -f "%Sg" "${myUserDir}")
         [ -z "$myGrp" ] || [[ "$myGrp" == "0" ]] && return 1
