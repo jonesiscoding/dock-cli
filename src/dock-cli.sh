@@ -1671,7 +1671,7 @@ if [[ "$inFile:e" == "plist" ]] && ! $isManaged && ! $isDefault; then
   esac
 elif [ -n "$outFile" ] && [[ "$outFile:e" == "plist" ]]; then
   # Make sure we have an initial file
-  dock::init "$outFile"
+  dock::init "$outFile" || exit 1
   # Set the output format, if not set
   [ -z "$outFormat" ] && outFormat="plist"
   # Handle data
