@@ -1052,39 +1052,53 @@ _findUrlApp() {
   declare -a possible
 
   if echo "$browser" | grep -q -E "(any|safari)"; then
-    possible[$idx]="/Applications/${label}.app" && idx=$((idx+1))
-    possible[$idx]="$myUserDir/Applications/${label}.app" && idx=$((idx+1))
+    possible[$idx]="/Applications/*.app" && idx=$((idx+1))
+    possible[$idx]="$myUserDir/Applications/*.app" && idx=$((idx+1))
   fi
 
   if echo "$browser" | grep -q -E "(any|safari|chrome|edge)"; then
-    possible[$idx]="/Applications/${label}.webloc" && idx=$((idx+1))
-    possible[$idx]="$myUserDir/Applications/${label}.webloc" && idx=$((idx+1))
+    possible[$idx]="/Applications/*.webloc" && idx=$((idx+1))
+    possible[$idx]="$myUserDir/Applications/*.webloc" && idx=$((idx+1))
   fi
 
   if echo "$browser" | grep -q -E "(any|chrome)"; then
-    possible[$idx]="/Applications/${label}.crwebloc" && idx=$((idx+1))
-    possible[$idx]="$myUserDir/Applications/Chrome Apps/${label}.app" && idx=$((idx+1))
-    possible[$idx]="$myUserDir/Applications/Chrome Apps/${label}.crwebloc" && idx=$((idx+1))
-    possible[$idx]="$myUserDir/Applications/Chrome Apps/${label}.webloc" && idx=$((idx+1))
+    possible[$idx]="/Applications/*.crwebloc" && idx=$((idx+1))
+    if [ -d "$myUserDir/Applications/Chrome Apps" ]; then
+      possible[$idx]="$myUserDir/Applications/Chrome Apps/*.app" && idx=$((idx+1))
+      possible[$idx]="$myUserDir/Applications/Chrome Apps/*.crwebloc" && idx=$((idx+1))
+      possible[$idx]="$myUserDir/Applications/Chrome Apps/*.webloc" && idx=$((idx+1))
+    elif [ -d "$myUserDir/Applications/Chrome Apps.localized" ]; then
+      possible[$idx]="$myUserDir/Applications/Chrome Apps.localized/*.app" && idx=$((idx+1))
+      possible[$idx]="$myUserDir/Applications/Chrome Apps.localized/*.crwebloc" && idx=$((idx+1))
+      possible[$idx]="$myUserDir/Applications/Chrome Apps.localized/*.webloc" && idx=$((idx+1))
+    fi
   fi
 
   if echo "$browser" | grep -q -E "(any|edge)"; then
-    possible[$idx]="$myUserDir/Applications/Edge Apps/${label}.app" && idx=$((idx+1))
-    possible[$idx]="$myUserDir/Applications/Edge Apps/${label}.webloc" && idx=$((idx+1))
+    if [ -d "$myUserDir/Applications/Edge Apps" ]; then
+      possible[$idx]="$myUserDir/Applications/Edge Apps/*.app" && idx=$((idx+1))
+      possible[$idx]="$myUserDir/Applications/Edge Apps/*.webloc" && idx=$((idx+1))
+    elif [ -d "$myUserDir/Applications/Edge Apps.localized" ]; then
+      possible[$idx]="$myUserDir/Applications/Edge Apps.localized/*.app" && idx=$((idx+1))
+      possible[$idx]="$myUserDir/Applications/Edge Apps.localized/*.webloc" && idx=$((idx+1))
+    fi
   fi
 
-  for poss in $possible; do
-    if [ -e "$poss" ]; then
-      if echo "$poss:e" | grep -q "webloc"; then
-        testUrl=$(plist::webloc::url "$poss")
-      elif echo "$poss:e" | grep -q "app"; then
-        testUrl=$(plist::webapp::url "$poss/Contents/Info.plist")
-      fi
+  setopt nullglob
+  for possGlob in $possible; do
+    for poss in $~possGlob; do
+      if [ -e "$poss" ]; then
+        if echo "$poss:e" | grep -q "webloc"; then
+          testUrl=$(plist::webloc::url "$poss")
+        elif echo "$poss:e" | grep -q "app"; then
+          testUrl=$(plist::webapp::url "$poss/Contents/Info.plist")
+        fi
 
-      if [ -n "$testUrl" ] && [[ "$testUrl" == "$url" ]]; then
-        echo "$poss" && return 0
+        if [ -n "$testUrl" ] && [[ "$testUrl" == "$url" ]]; then
+          echo "$poss" && return 0
+        fi
       fi
-    fi
+    done
   done
 
   return 1
