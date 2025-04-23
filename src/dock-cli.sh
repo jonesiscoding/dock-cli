@@ -470,12 +470,20 @@ function is-native-dock-plist() {
 function reload-dock() {
   local activateSettings="/System/Library/PrivateFrameworks/SystemAdministration.framework/Resources/activateSettings"
 
-  if [ -f "$activateSettings" ] && [[ "$myUser" == "$USER" ]]; then
-    sudo -u "$myUser" "$activateSettings" && killall Dock
-  elif [ -f "$activateSettings" ]; then
-    $activateSettings && killall Dock
+  [[ "$myUser" != "$(user::console)" ]] && return 0
+
+  if [[ "$USER" == "$myUser" ]]; then
+    if [ -f "$activateSettings" ]; then
+      $activateSettings && killall Dock
+    else
+      sudo killall cprefsd && killall Dock
+    fi
   else
-    killall cprefsd && killall Dock
+    if [ -f "$activateSettings" ]; then
+      sudo -u "$myUser" "$activateSettings" && killall Dock
+    else
+      sudo killall cprefsd && killall Dock
+    fi
   fi
 }
 
