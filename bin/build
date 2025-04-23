@@ -147,6 +147,23 @@ function build::package() {
   fi
 }
 
+function build::notarize() {
+  local tmpFile
+
+  tmpFile=$(mktemp)
+  if ! xcrun notarytool submit "${buildPath}/${myName}-${nVer}.pkg" --keychain-profile "${myProfile}" --wait > "$tmpFile"; then
+    echo "ERROR Notarizing Package:"
+    echo "-------"
+    cat "$tmpFile"
+    echo "-------"
+    echo "For additional information, run:"
+    echo "  xcrun notarylog <submission-id-above> --keychain-profile \"${myProfile}\""
+    return 1
+  fi
+
+  return 0
+}
+
 ## endregion ################################### Packages Build
 
 ## region ###################################### Input Handling
@@ -162,6 +179,7 @@ while [ "$1" != "" ]; do
     --patch )                   isPatch=true;                ;;
     --identity )                myIdent="$2"; shift;         ;;
     --keychain )                myChain="$2"; shift;         ;;
+    --notarize )                myProfile="$2"; shift;       ;;
   esac
   shift # move to next kv pair
 done
@@ -176,6 +194,8 @@ done
 ! version::increment && echo "Error while Incrementing Version" && exit 1
 ! build::script && echo "ERROR Building Script" && exit 1
 ! build::package && echo "ERROR Building Package:" && echo "$errText" && exit 1
+! build::package && echo "ERROR Building Package:" && echo "$errText" && exit 1
+! [ -n "$myProfile" ] && build::notarize && exit 1
 exit 0
 
 ## endregion ################################### End Main Code
