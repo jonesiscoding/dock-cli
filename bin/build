@@ -208,6 +208,7 @@ done
 echo "Version:   ${oVer} => ${nVer}"
 echo "Package:   ${buildPath}/${myName}-${nVer}.pkg"
 echo "Identity:  ${myIdent}"
+
 if [ -n "$myProfile" ]; then
   ! build::notarize && exit 1
   echo "Notary ID: ${notarizeId}"
@@ -215,7 +216,7 @@ fi
 
 if [ -z "$nBuild" ] && $isPush; then
   ! build::push && echo "ERROR Pushing Tags" && exit 1
-  echo "Tagged: v${nVer}"
+  echo "Tagged:    v${nVer}"
 fi
 
 exit 0
