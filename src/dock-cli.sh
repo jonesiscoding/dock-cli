@@ -28,7 +28,7 @@ plistFile="com.apple.dock.plist"
 plistDir="Library/Preferences"
 plistDirManaged="Library/Managed Preferences"
 webappPattern="(com.apple.Safari.WebApp|com.google.Chrome.app|com.microsoft.edgemac.app)"
-defaultPlist="System/Library/User Template/English.lproj/${plistDir}/${plistFile}"
+defaultPlist="/System/Library/User Template/English.lproj/${plistDir}/${plistFile}"
 binPlb=/usr/libexec/PlistBuddy
 
 # Internal Pointers
