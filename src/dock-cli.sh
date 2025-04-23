@@ -1645,6 +1645,8 @@ else
 
 fi
 
+[ -z "$inFile" ] && echo "ERROR: The file '$inFile' does not exist." && exit 1
+
 ## endregion ################################### Input Handling
 
 ## region ###################################### Main Code
