@@ -209,6 +209,17 @@ function output-schema() {
       "items": {
         "type": "object",
         "properties": {
+          "type": {
+            "title": "Tile Type",
+            "type": "string",
+            "enum": [
+              "file-tile",
+              "dir-tile",
+              "url-tile",
+              "app-tile",
+              "terminal-tile",
+            ]
+          },
           "label": {
             "title": "Label",
             "type": "string"
