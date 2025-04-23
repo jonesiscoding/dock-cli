@@ -335,6 +335,45 @@ function output::mobileconfig() {
   fi
 }
 
+function output::text() {
+  local json
+  # Loop through JSON
+  declare -a sections
+  sections[1]="persistent-apps"
+  sections[2]="persistent-others"
+  tmpOutput=$(mktemp)
+  json="$1"
+  echo "Section,Type,Label,Data" >> "$tmpOutput"
+
+  for tSection in $sections; do
+    tile="{}"
+    x=0
+    while [ -n "$tile" ]; do
+      tile=$(jq -r ".\"${tSection}\"[${x}]//empty" <<< "$json")
+      if [ -n "$tile" ]; then
+        if ! json-is-object "$tile"; then
+          tile=$(tile::resolve "$tile")
+        fi
+
+        tType=$(jq -r '.type' <<< "$tile")
+        tLabel=$(jq -r '.label' <<< "$tile")
+        tUrl=$(jq -r '.url' <<< "$tile")
+        echo "${tSection},${tType},${tLabel},${tUrl}" >> "$tmpOutput"
+      fi
+      x=$((x+1))
+    done
+  done
+
+  data=$(column -t -s "," "$tmpOutput")
+  longest=$(echo "$data" | awk '{print length($0) " " $0}' | sort -nr | head -n 1 | cut -d " " -f 2-)
+  header=$(echo "$data" | head -1)
+  length=${#longest}
+  echo "$header"
+  print -r -- "${(pl:$length::-:)}"
+  echo "$data" | tail -n +2
+  rm "$tmpOutput"
+}
+
 ## endregion ################################### End Output Functions
 
 ## region ###################################### Prerequisite Functions
@@ -1668,6 +1707,11 @@ if [[ "$inFile:e" == "plist" ]] && ! $isManaged && ! $isDefault; then
     mobileconfig)
       json=$(dock::create "$inFile")
       output::mobileconfig "$json"
+      ;;
+    text)
+      json=$(dock::create "$inFile")
+      output::text "$json"
+      ;;
   esac
 elif [ -n "$outFile" ] && [[ "$outFile:e" == "plist" ]]; then
   # Make sure we have an initial file
