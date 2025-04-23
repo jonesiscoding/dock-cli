@@ -468,7 +468,6 @@ function is-native-dock-plist() {
 # @exitcode 0 Success
 # @exitcode 1 Failure
 function reload-dock() {
-#  System/Library/User\ Template/English.lproj/Library/Preferences/com.apple.dock.plist
   local activateSettings="/System/Library/PrivateFrameworks/SystemAdministration.framework/Resources/activateSettings"
 
   if [ -f "$activateSettings" ] && [[ "$myUser" == "$USER" ]]; then
