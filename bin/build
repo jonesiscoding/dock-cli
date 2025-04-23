@@ -14,6 +14,7 @@ diff=$($xGit diff-index HEAD --)
 oVer=$($xGit describe --abbrev=0 --tags 2> /dev/null | /usr/bin/sed 's/^v//')
 [ -z "$oVer" ] && oVer="1.0.0"
 nVer="$oVer"
+nBuild=""
 
 # Path Variables
 myPath="${0:a:h}"
@@ -151,7 +152,7 @@ function build::notarize() {
   local tmpFile
 
   tmpFile=$(mktemp)
-  if ! xcrun notarytool submit "${buildPath}/${myName}-${nVer}.pkg" --keychain-profile "${myProfile}" --wait > "$tmpFile"; then
+  if ! xcrun notarytool submit "${buildPath}/${myName}-${nVer}.pkg" --keychain-profile "${myProfile}" --wait > "$tmpFile" 2>&1; then
     echo "ERROR Notarizing Package:"
     echo "-------"
     cat "$tmpFile"
@@ -161,7 +162,14 @@ function build::notarize() {
     return 1
   fi
 
+  notarizeId=$(cat "$tmpFile" | grep "id: " | tail -1 | awk '{ print $2 }')
+
   return 0
+}
+
+function build::push() {
+  git tag -a "v${nVer}" -m "v${nVer} (Built with /bin/build)"> /dev/null 2>&1
+  git push --follow-tags > /dev/null 2>&1
 }
 
 ## endregion ################################### Packages Build
@@ -171,12 +179,15 @@ function build::notarize() {
 isMajor=false
 isMinor=false
 isPatch=false
+isPush=false
+notarizeId=""
 while [ "$1" != "" ]; do
   # Check flags
   case "$1" in
     --major )                   isMajor=true;                ;;
     --minor )                   isMinor=true;                ;;
     --patch )                   isPatch=true;                ;;
+    --push )                    isPush=true;                 ;;
     --identity )                myIdent="$2"; shift;         ;;
     --keychain )                myChain="$2"; shift;         ;;
     --notarize )                myProfile="$2"; shift;       ;;
@@ -194,8 +205,19 @@ done
 ! version::increment && echo "Error while Incrementing Version" && exit 1
 ! build::script && echo "ERROR Building Script" && exit 1
 ! build::package && echo "ERROR Building Package:" && echo "$errText" && exit 1
-! build::package && echo "ERROR Building Package:" && echo "$errText" && exit 1
-! [ -n "$myProfile" ] && build::notarize && exit 1
+echo "Version:   ${oVer} => ${nVer}"
+echo "Package:   ${buildPath}/${myName}-${nVer}.pkg"
+echo "Identity:  ${myIdent}"
+if [ -n "$myProfile" ]; then
+  ! build::notarize && exit 1
+  echo "Notary ID: ${notarizeId}"
+fi
+
+if [ -z "$nBuild" ] && $isPush; then
+  ! build::push && echo "ERROR Pushing Tags" && exit 1
+  echo "Tagged: v${nVer}"
+fi
+
 exit 0
 
 ## endregion ################################### End Main Code
