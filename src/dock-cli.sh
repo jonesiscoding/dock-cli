@@ -1505,11 +1505,15 @@ function dock::init() {
   if [ -n "$myUser" ] && [ -n "$myUserDir" ]; then
     if [ ! -f "$myFile" ]; then
       if echo "$myFile" | grep -qE "^$myUserDir"; then
-        cp "$defaultPlist" "$myFile" || return 1
-        chown "$myUser" "$myFile" || return 1
-        myGrp=$(/usr/bin/stat -f "%Sg" "${myUserDir}")
-        [ -z "$myGrp" ] || [[ "$myGrp" == "0" ]] && return 1
-        chgrp "$myGrp" "$myFile" || return 1
+        if [ -f "$defaultPlist" ]; then
+          cp "$defaultPlist" "$myFile" || return 1
+          chown "$myUser" "$myFile" || return 1
+          myGrp=$(/usr/bin/stat -f "%Sg" "${myUserDir}")
+          [ -z "$myGrp" ] || [[ "$myGrp" == "0" ]] && return 1
+          chgrp "$myGrp" "$myFile" || return 1
+        else
+          killall Dock
+        fi
       fi
     fi
   fi
