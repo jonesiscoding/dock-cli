@@ -1351,7 +1351,7 @@ tile::resolve::url() {
 }
 
 tile::resolve() {
-  local appPath termPath
+  local appPath termPath file repl
   if [[ "${1:0:1}" != "{" ]]; then
     if [[ "${1:0:4}" == "http" ]]; then
       tile::resolve::url "$1"
@@ -1377,7 +1377,17 @@ tile::resolve() {
     fi
   else
     # Already a JSON Object
-    echo "$1"
+    repl="$1"
+    type=$(tile::type "$1")
+    case "$type" in
+      app*)
+        file=$(tile::url "$1")
+        if [ ! -e "$url" ]; then
+          file=$(app::resolve "$file")
+          repl=$(json-obj-add "$1" url "$file")
+        fi
+    esac
+    echo "$repl"
   fi
 }
 
