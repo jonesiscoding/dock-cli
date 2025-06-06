@@ -625,7 +625,7 @@ function app::adobe::summarize() {
 # @exitcode 1 No Path Found
 function app::paths::exists() {
   local i
-  jq -c '.[]' <<< "$1" | while read i; do
+  jq -r -c '.[]' <<< "$1" | while read i; do
     if [ -e "$i" ]; then
       echo "$i" && return 0
     fi
