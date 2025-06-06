@@ -1058,6 +1058,7 @@ _findUrlApp() {
   label="$1"
   url="$2"
   browser="$3"
+  [ -z "$browser" ] && browser="any"
   idx=1
 
   declare -a possible
